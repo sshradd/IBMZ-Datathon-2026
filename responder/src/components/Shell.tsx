@@ -73,7 +73,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 }
 
 function Playback() {
-  const { latest, state, connected, online, queued, pause, resume, start, seek, scenarios } = useStore();
+  const { latest, state, connected, online, queued, pause, resume, start, startDemo, seek } = useStore();
   const live = state?.scenario === "live";
   const n = state?.n ?? 0;
   const i = latest?.i ?? 0;
@@ -84,7 +84,7 @@ function Playback() {
   const nws = latest?.alerts?.events.filter((e) => e.relevant).length ?? 0;
 
   const toggle = () => {
-    if (!state?.scenario) return start(scenarios[1]?.key ?? "uri");
+    if (!state?.scenario) return startDemo();
     return state.running ? pause() : resume();
   };
 

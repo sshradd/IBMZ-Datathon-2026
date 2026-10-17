@@ -12,6 +12,8 @@ export interface Tiers {
 const API = process.env.NEXT_PUBLIC_API ?? "";
 const QUEUE_KEY = "uw-queue";
 const LAST_KEY = "uw-last";
+// Winter Storm Uri, 2021-02-08 + 90 h: the first warnings are up and crews still have time to move
+const DEMO = { scenario: "uri", hour: 90 };
 export const UNDO_MS = 10000;
 
 class ApiError extends Error {
@@ -92,6 +94,8 @@ export interface Store {
   say: (msg: string) => void;
   series: { i: number; out: number; flagged: number }[];
   start: (scenario: string, model?: string | null) => Promise<void>;
+  /** the demo outages, opened at the hour the first warnings go up */
+  startDemo: () => Promise<void>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
   seek: (i: number) => Promise<void>;
@@ -303,6 +307,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     [refreshState, refreshOps],
   );
+  const startDemo = useCallback(async () => {
+    await start(DEMO.scenario);
+    await call("POST", "/api/replay/seek", { i: DEMO.hour });
+    void refreshState();
+  }, [start, refreshState]);
   const pause = useCallback(async () => {
     await call("POST", "/api/replay/pause");
     void refreshState();
@@ -396,10 +405,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Store>(
     () => ({
       latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, setSelected, pendingUndo, toast, say, series,
-      qty, setQty, start, pause, resume, seek, setSpeed, dispatch, undo, setUnitCount, setStock, setTarget, setUnitStatus, sitrep, refreshPlan,
+      qty, setQty, start, startDemo, pause, resume, seek, setSpeed, dispatch, undo, setUnitCount, setStock, setTarget, setUnitStatus, sitrep, refreshPlan,
     }),
     [latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, pendingUndo, toast, say, series,
-      qty, setQty, start, pause, resume, seek, setSpeed, dispatch, undo, setUnitCount, setStock, setTarget, setUnitStatus, sitrep, refreshPlan],
+      qty, setQty, start, startDemo, pause, resume, seek, setSpeed, dispatch, undo, setUnitCount, setStock, setTarget, setUnitStatus, sitrep, refreshPlan],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

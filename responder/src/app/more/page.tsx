@@ -82,7 +82,7 @@ export default function More() {
               <Radio /> Live now
             </button>
             {s.scenarios.some((x) => x.key !== "live") && (
-              <button className="btn" onClick={() => s.start(s.scenarios.find((x) => x.key !== "live")!.key)}>
+              <button className="btn" onClick={() => s.startDemo()}>
                 Demo outages
               </button>
             )}

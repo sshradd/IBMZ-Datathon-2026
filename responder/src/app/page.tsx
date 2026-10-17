@@ -39,6 +39,14 @@ export default function Outages() {
     window.addEventListener("hashchange", check);
     return () => window.removeEventListener("hashchange", check);
   }, []);
+  // first open: load the demo outages so the map is never empty. Live stays a choice.
+  const autoStarted = useRef(false);
+  const hasDemo = s.scenarios.some((x) => x.key !== "live");
+  useEffect(() => {
+    if (autoStarted.current || latest || s.state?.scenario || !hasDemo || location.hash === "#start") return;
+    autoStarted.current = true;
+    s.startDemo();
+  }, [latest, s, hasDemo]);
   const closePicker = () => {
     history.replaceState(null, "", location.pathname + location.search);
     setPicker(false);
@@ -127,7 +135,15 @@ export default function Outages() {
           <h2 className="display mt-2 text-[30px]">
             No county needs a <span className="accent text-[36px]">crew</span>
           </h2>
-          <p className="mt-2 muted">Nothing is rated watch or higher right now. This list updates every time the forecast does.</p>
+          <p className="mt-2 muted">
+            Nothing is rated watch or higher right now. This list updates every time the forecast does.
+            {live && " Live data is quiet, which is good news but a blank map. Load the demo outages to see the console with an active event."}
+          </p>
+          {live && hasDemo && (
+            <button className="btn btn-ink mt-4" onClick={() => s.startDemo()}>
+              <Play /> Load demo outages
+            </button>
+          )}
         </div>
       )}
 
@@ -277,12 +293,12 @@ function Legend({ layer }: { layer: Layer }) {
 }
 
 function Empty({ onBack }: { onBack?: () => void }) {
-  const { scenarios, start: startRaw, state } = useStore();
+  const { scenarios, start: startRaw, startDemo, state } = useStore();
   const start = (k: string) => {
     startRaw(k);
     onBack?.();
   };
-  const demo = scenarios.find((x) => x.key !== "live");
+  const demo = scenarios.some((x) => x.key !== "live");
   return (
     <div className="mx-auto grid min-h-[calc(100dvh-56px-64px)] max-w-4xl place-items-center px-5 py-10">
       <div className="w-full">
@@ -293,17 +309,17 @@ function Empty({ onBack }: { onBack?: () => void }) {
           See where it goes dark <span className="accent text-[1.1em]">next.</span>
         </h1>
         <p className="mt-5 max-w-xl text-[19px] leading-snug text-ink2">
-          Counties ranked by outage risk, the nearest crew, and when to leave. You decide how many to send, and one tap sends them.
+          Counties ranked by outage risk, the nearest crew, and when to leave. You decide how many to send, and one tap sends them. Demo outages are recorded events. Live shows today's weather and grid, and is usually quiet.
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
-          <button className="btn btn-ink" onClick={() => start("live")}>
-            <Radio /> Go live now
-          </button>
           {demo && (
-            <button className="btn !min-h-[var(--tap)] !text-[17px]" onClick={() => start(demo.key)}>
+            <button className="btn btn-ink" onClick={() => { void startDemo(); onBack?.(); }}>
               <Play /> Load demo outages
             </button>
           )}
+          <button className="btn !min-h-[var(--tap)] !text-[17px]" onClick={() => start("live")}>
+            <Radio /> Go live
+          </button>
         </div>
         {onBack && (
           <button className="btn mt-3" onClick={onBack}>
