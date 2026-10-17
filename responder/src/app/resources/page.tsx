@@ -30,7 +30,7 @@ export default function Resources() {
           What you have <span className="accent text-[1.1em]">on hand</span>
         </h1>
         <p className="mt-3 max-w-2xl text-[17px] leading-snug text-ink2">
-          The forecast only covers weather and outages, so it cannot tell you how much material a storm will use. Keep your inventory here, set the target you want for each item, and the page shows where you are below it. Stock numbers are sample data until you edit them.
+          The forecast only covers weather and outages, so it cannot tell you how much material an outage will use. Keep your inventory here, set the target you want for each item, and the page shows where you are below it. Stock numbers are sample data until you edit them.
         </p>
       </header>
 

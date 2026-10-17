@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { List, Map as MapIcon, Play, Radio } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CountyList from "@/components/CountyList";
 import CountyMap, { type Layer, type MapLink } from "@/components/CountyMap";
 import Decision from "@/components/Decision";
@@ -31,6 +31,18 @@ export default function Outages() {
   const [skipped, setSkipped] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [snap, setSnap] = useState(0);
+  // the header's start button links to /#start: show the start screen again, then drop the hash
+  const [picker, setPicker] = useState(false);
+  useEffect(() => {
+    const check = () => setPicker(location.hash === "#start");
+    check();
+    window.addEventListener("hashchange", check);
+    return () => window.removeEventListener("hashchange", check);
+  }, []);
+  const closePicker = () => {
+    history.replaceState(null, "", location.pathname + location.search);
+    setPicker(false);
+  };
 
   const priorities = useMemo(() => (plan?.priorities ?? []).filter((p) => !skipped.includes(p.fips)), [plan, skipped]);
   const top = priorities[0];
@@ -67,7 +79,7 @@ export default function Outages() {
     else setSnap((v) => Math.min(SNAPS.length - 1, Math.max(0, v + (dy < 0 ? 1 : -1))));
   };
 
-  if (!latest) return <Empty />;
+  if (!latest || picker) return <Empty onBack={latest ? closePicker : undefined} />;
 
   const now = latest.as_of ?? latest.t;
   const live = !!latest.live;
@@ -264,9 +276,13 @@ function Legend({ layer }: { layer: Layer }) {
   );
 }
 
-function Empty() {
-  const { scenarios, start, state } = useStore();
-  const storms = scenarios.filter((x) => x.key !== "live");
+function Empty({ onBack }: { onBack?: () => void }) {
+  const { scenarios, start: startRaw, state } = useStore();
+  const start = (k: string) => {
+    startRaw(k);
+    onBack?.();
+  };
+  const demo = scenarios.find((x) => x.key !== "live");
   return (
     <div className="mx-auto grid min-h-[calc(100dvh-56px-64px)] max-w-4xl place-items-center px-5 py-10">
       <div className="w-full">
@@ -283,22 +299,17 @@ function Empty() {
           <button className="btn btn-ink" onClick={() => start("live")}>
             <Radio /> Go live now
           </button>
-          {storms.slice(0, 1).map((x) => (
-            <button key={x.key} className="btn !min-h-[var(--tap)] !text-[17px]" onClick={() => start(x.key)}>
-              <Play /> Replay {x.title}
+          {demo && (
+            <button className="btn !min-h-[var(--tap)] !text-[17px]" onClick={() => start(demo.key)}>
+              <Play /> Load demo outages
             </button>
-          ))}
+          )}
         </div>
-        <details className="mt-5">
-          <summary className="cursor-pointer text-[15px] muted">Other storms</summary>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {storms.slice(1).map((x) => (
-              <button key={x.key} className="btn btn-sm" onClick={() => start(x.key)}>
-                {x.title}
-              </button>
-            ))}
-          </div>
-        </details>
+        {onBack && (
+          <button className="btn mt-3" onClick={onBack}>
+            <MapIcon /> Back to the map
+          </button>
+        )}
         {state?.scenario && <p className="mt-4 text-[14px] muted">Waiting for the first update…</p>}
       </div>
     </div>

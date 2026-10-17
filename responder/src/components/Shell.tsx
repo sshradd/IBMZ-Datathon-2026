@@ -4,7 +4,7 @@ import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CloudOff, Ellipsis, Map as MapIcon, Package, Pause, Play, RotateCcw, Undo2, Users, Zap } from "lucide-react";
+import { CloudOff, Ellipsis, Map as MapIcon, Package, Pause, Play, Radio, RotateCcw, Undo2, Users, Zap } from "lucide-react";
 import { UNDO_MS, useStore } from "@/lib/store";
 import { clock, dayClock } from "@/lib/format";
 
@@ -93,8 +93,11 @@ function Playback() {
       <button className="btn btn-icon flex-none" onClick={toggle} aria-label={state?.running ? "Pause" : "Play"}>
         {state?.running ? <Pause /> : <Play />}
       </button>
+      <Link href="/#start" className="btn btn-icon flex-none" aria-label="Back to the start screen: live or demo data" title="Start screen: live or demo data">
+        <Radio />
+      </Link>
       {state?.scenario && !live && (
-        <button className="btn btn-icon hidden flex-none sm:inline-flex" onClick={() => start(state.scenario!, state.model)} aria-label="Restart replay">
+        <button className="btn btn-icon hidden flex-none sm:inline-flex" onClick={() => start(state.scenario!, state.model)} aria-label="Restart demo">
           <RotateCcw />
         </button>
       )}
@@ -117,10 +120,10 @@ function Playback() {
             onPointerUp={() => drag != null && seek(drag)}
             onKeyUp={() => drag != null && seek(drag)}
             className="scrub"
-            aria-label="Position in the storm"
+            aria-label="Position in the demo data"
           />
         ) : (
-          <p className="truncate text-[14px] muted">Press play to start a storm replay</p>
+          <p className="truncate text-[14px] muted">Press play to load demo outages</p>
         )}
       </div>
 

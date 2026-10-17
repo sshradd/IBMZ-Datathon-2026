@@ -15,7 +15,7 @@ interface Model {
   };
 }
 
-const STORM: Record<string, string> = { uri: "Winter Storm Uri", elliott: "Winter Storm Elliott", ice2023: "Feb 2023 ice storm", heat2023: "Aug 2023 heat dome" };
+const EVENT: Record<string, string> = { uri: "Feb 2021 outages", elliott: "Dec 2022 outages", ice2023: "Feb 2023 outages", heat2023: "Aug 2023 outages" };
 
 export default function More() {
   const s = useStore();
@@ -35,7 +35,7 @@ export default function More() {
     try {
       setBrief(await s.sitrep());
     } catch {
-      s.say("Start a storm replay or go live first: there is no forecast to brief on");
+      s.say("Go live or load demo outages first: there is no forecast to brief on");
     }
   };
 
@@ -81,20 +81,18 @@ export default function More() {
             <button className="btn" onClick={() => s.start("live")}>
               <Radio /> Live now
             </button>
-            {s.scenarios
-              .filter((x) => x.key !== "live")
-              .map((x) => (
-                <button key={x.key} className="btn" onClick={() => s.start(x.key)}>
-                  Replay {x.title}
-                </button>
-              ))}
+            {s.scenarios.some((x) => x.key !== "live") && (
+              <button className="btn" onClick={() => s.start(s.scenarios.find((x) => x.key !== "live")!.key)}>
+                Demo outages
+              </button>
+            )}
           </div>
           <p className="mt-3 text-[14.5px] muted">
-            Replays are real storms scored by a model that never saw them. Live mode has no county outage feed: it forecasts from weather and grid data, and its 6 and 12 hour forecasts are weak.
+            Demo outages are real recorded county outages, scored by a model that never saw them. Live mode has no county outage feed: it forecasts from weather and grid data, and its 6 and 12 hour forecasts are weak.
             {s.state?.scenario && (
               <>
                 {" "}
-                Now showing: <b className="text-ink">{s.state.title}</b>.
+                Now showing: <b className="text-ink">{s.state.scenario === "live" ? "live data" : "demo outages"}</b>.
               </>
             )}
           </p>
@@ -118,12 +116,12 @@ export default function More() {
 
         <section aria-label="How far to trust it">
           <h2 className="eyebrow">How far to trust it</h2>
-          <p className="mt-2 text-[16px] muted">Tested on storms the model never saw. Most alerts still do not end in a severe outage, so the plan is a ranking, not a promise.</p>
+          <p className="mt-2 text-[16px] muted">Tested on outage events the model never saw. Most alerts still do not end in a severe outage, so the plan is a ranking, not a promise.</p>
           {model?.metrics.scenarios && (
             <ul className="rows mt-3">
               {Object.entries(model.metrics.scenarios).map(([k, v]) => (
                 <li key={k} className="flex items-baseline gap-3 py-3 text-[15px]">
-                  <span className="min-w-0 flex-1">{STORM[k] ?? k}</span>
+                  <span className="min-w-0 flex-1">{EVENT[k] ?? k}</span>
                   <span className="mono text-[12.5px] text-ink3">
                     {v.warned}/{v.onsets} warned first
                   </span>

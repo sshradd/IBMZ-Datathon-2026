@@ -66,7 +66,7 @@ export default function Teams() {
               <Send /> Send to top 5
             </button>
           </div>
-          {!list.length && <p className="py-6 text-[15px] muted">{latest ? "No county is rated watch or higher right now." : "Start a storm replay or go live to see the ranking."}</p>}
+          {!list.length && <p className="py-6 text-[15px] muted">{latest ? "No county is rated watch or higher right now." : "Go live or load demo outages to see the ranking."}</p>}
           <ul className="rows mt-1">
             {list.map((p) => {
               const q = qtyOf(qty, p.fips);
