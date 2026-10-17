@@ -22,7 +22,9 @@ All public, no login. Fetched by `scripts/fetch_data.py`.
 | ERCOT public dashboard JSON `ercot.com/api/1/services/read/dashboards/supply-demand.json` and `fuel-mix.json` | 5-minute demand, hourly demand forecast, generation by fuel | Public ERCOT dashboard data; not an official documented API |
 | National Weather Service API `api.weather.gov/alerts/active?area=TX` | Active watches, warnings and advisories | US government public data |
 
-All training labels and features come from the historical files above. Storm replays in `data/replay/` are derived from them.
+All training labels and features come from the historical files above.
+
+Downloaded but not used by any model: the EIA ERCOT zone-level (subregion) demand files and the Open-Meteo cloud-cover field. Probed but never downloaded or used: NOAA Storm Events, FEMA OpenFEMA and DART transit data. Storm replays in `data/replay/` are derived from them.
 
 ## Backend (Python)
 
@@ -62,6 +64,24 @@ The scorer is written from scratch in `model.py` (pure Python, JSON weights).
 
 Exact versions: `web/package-lock.json`.
 
+## Responder console (responder/)
+
+| Library | License | Link |
+|---|---|---|
+| Next.js | MIT | https://github.com/vercel/next.js |
+| React, React DOM | MIT | https://github.com/facebook/react |
+| Tailwind CSS, @tailwindcss/postcss | MIT | https://github.com/tailwindlabs/tailwindcss |
+| d3-geo (map projection) | ISC | https://github.com/d3/d3-geo |
+| topojson-client | ISC | https://github.com/topojson/topojson-client |
+| us-atlas (county boundaries, derived from US Census data) | ISC | https://github.com/topojson/us-atlas |
+| Lucide icons | ISC | https://github.com/lucide-icons/lucide |
+| clsx | MIT | https://github.com/lukeed/clsx |
+| Barlow Condensed (via @fontsource, self-hosted) | OFL-1.1 | https://github.com/jpt/barlow |
+| IBM Plex Sans and Plex Mono (via @fontsource, self-hosted) | OFL-1.1 | https://github.com/IBM/plex |
+| Pillow (one-off, to draw the PWA icons) | HPND | https://github.com/python-pillow/Pillow |
+
+Crews, depots and inventory are our own sample data, labeled as such in the app.
+
 ## Platform
 
 - IBM LinuxONE (s390x), provided by the IBM Z Datathon
@@ -74,4 +94,4 @@ Exact versions: `web/package-lock.json`.
 
 ## AI assistance
 
-- Claude Code (Anthropic) was used to help write code and docs during the event.
+- Claude Code (Anthropic) was used to help write code and docs during the event, including its UI/UX and front-end design guidance skills for the responder console.

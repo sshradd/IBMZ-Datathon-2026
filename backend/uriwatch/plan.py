@@ -124,6 +124,7 @@ def build_plan(
     resources: dict[str, int],
     state: dict,
     tier_stats: dict | None,
+    max_rows: int = 14,
 ) -> dict:
     crews, centers, callers = resources["crews"], resources["centers"], resources["callers"]
     live = [c for c in cands if c.severe or c.tier >= 1]
@@ -175,7 +176,7 @@ def build_plan(
 
     plan = {
         "resources": {"crews": crews, "centers": centers, "callers": callers},
-        "deployments": deployments[:14],
+        "deployments": deployments[:max_rows],
         "coverage": {k: round(v, 3) for k, v in cov.items()},
         "naive_coverage": {k: round(v, 3) for k, v in naive.items()},
         "curve": curve,

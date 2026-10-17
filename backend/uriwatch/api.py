@@ -15,6 +15,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -22,12 +23,14 @@ from pydantic import BaseModel, Field
 from .engine import TIER_NAMES, explain
 from .features import FEATURES, GROUPS
 from .model import WINDOWS
+from . import ops as opsmod
 from .live import config as live_config
 from .live.session import LiveSession
 from .replay import DEFAULT_MODEL, Session, available, load_bundle, load_model
 
 ROOT = Path(__file__).resolve().parents[2]
-WEB_DIST = ROOT / "web" / "dist"
+# The responder console (Next.js static export) when built, otherwise the analyst dashboard.
+WEB_DIST = ROOT / "responder" / "out" if (ROOT / "responder" / "out").exists() else ROOT / "web" / "dist"
 BENCH_RESULTS = ROOT / "bench" / "results"
 
 MODEL_NAMES = ("honest", "final", "live_honest", "live_final")
@@ -81,6 +84,7 @@ class AppState:
         self.speed = 12.0
         self.task: asyncio.Task | None = None
         self.last_msg: str | None = None  # sent to dashboards that connect mid-run
+        self.ops = opsmod.OpsState()
 
     def publish(self, msg: str, remember: bool = True) -> None:
         self.last_msg = msg if remember else None
@@ -152,6 +156,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Uri Watch", lifespan=lifespan)
+# `next dev` runs on :3000 and calls this server on another port.
+app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["*"], allow_headers=["*"])
 
 
 def _s(request: Request) -> AppState:
@@ -366,6 +372,135 @@ def bench_results() -> list[dict]:
 
 
 
+# ------------------------------------------------------------------ operations API
+# Crews, depots and inventory (sample data until edited) and the dispatch plan built on the forecast.
+
+
+class UnitCount(BaseModel):
+    depot: str
+    type: str
+    count: int = Field(ge=0, le=60)
+
+
+class StockEdit(BaseModel):
+    depot: str
+    item: str
+    qty: int = Field(ge=0)
+
+
+class TargetEdit(BaseModel):
+    item: str
+    target: int | None = Field(default=None, ge=0, description="How many the responder wants on hand; null clears it")
+
+
+class StatusEdit(BaseModel):
+    status: str
+
+
+class Order(BaseModel):
+    fips: str
+    line: int = Field(default=0, ge=0, le=60)
+    shelter: int = Field(default=0, ge=0, le=60)
+    outreach: int = Field(default=0, ge=0, le=60)
+
+
+class DispatchRequest(BaseModel):
+    orders: list[Order] = Field(description="How many of each unit to send to which county: the responder's call")
+
+
+class UndoRequest(BaseModel):
+    fips: list[str] | None = Field(default=None, description="Only these counties; omit to recall everything en route")
+
+
+def _engine(request: Request):
+    s = _s(request)
+    if not s.session or not s.session.engine.last_result:
+        raise HTTPException(409, "no forecast yet: start a storm replay or live mode first")
+    return s.session.engine
+
+
+@app.get("/api/ops/state")
+def ops_state(request: Request) -> dict:
+    return _s(request).ops.snapshot()
+
+
+@app.put("/api/ops/units")
+def ops_units(cfg: UnitCount, request: Request) -> dict:
+    try:
+        _s(request).ops.set_count(cfg.depot, cfg.type, cfg.count)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    return _s(request).ops.snapshot()
+
+
+@app.post("/api/ops/units/{unit_id}/status")
+def ops_unit_status(unit_id: str, cfg: StatusEdit, request: Request) -> dict:
+    try:
+        return _s(request).ops.set_status(unit_id, cfg.status)
+    except KeyError:
+        raise HTTPException(404, "unknown unit")
+    except ValueError:
+        raise HTTPException(422, f"status must be one of {list(opsmod.STATUSES)}")
+
+
+@app.put("/api/ops/inventory")
+def ops_inventory(cfg: StockEdit, request: Request) -> dict:
+    try:
+        _s(request).ops.set_stock(cfg.depot, cfg.item, cfg.qty)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    return _s(request).ops.snapshot()
+
+
+@app.put("/api/ops/targets")
+def ops_targets(cfg: TargetEdit, request: Request) -> dict:
+    try:
+        _s(request).ops.set_target(cfg.item, cfg.target)
+    except KeyError:
+        raise HTTPException(404, "unknown item")
+    return _s(request).ops.snapshot()
+
+
+@app.post("/api/ops/reset")
+def ops_reset(request: Request) -> dict:
+    _s(request).ops.reset()
+    return _s(request).ops.snapshot()
+
+
+@app.get("/api/ops/plan")
+def ops_plan(request: Request) -> dict:
+    """Counties ranked for response with the nearest crew and travel time, staging sites, and inventory against your targets."""
+    return opsmod.compute(_engine(request), _s(request).ops)
+
+
+@app.post("/api/ops/dispatch")
+def ops_dispatch(cfg: DispatchRequest, request: Request) -> dict:
+    """Send the units the responder chose to the counties they chose; returns shareable work orders."""
+    return opsmod.commit(_engine(request), _s(request).ops, [o.model_dump() for o in cfg.orders])
+
+
+@app.post("/api/ops/undo")
+def ops_undo(cfg: UndoRequest, request: Request) -> dict:
+    """Take back a dispatch: units go back to available."""
+    ops = _s(request).ops
+    n = 0
+    for u in ops.units():
+        a = u["assignment"]
+        if u["status"] == "en_route" and a and (cfg.fips is None or a["fips"] in cfg.fips):
+            u["status"], u["assignment"] = "available", None
+            n += 1
+    if n:
+        ops.log((_engine(request).last_result or {}).get("t", ""), "undo", f"Recalled {n} units")
+    ops.save()
+    return {"recalled": n}
+
+
+@app.get("/api/ops/sitrep")
+def ops_sitrep(request: Request) -> dict:
+    eng, ops = _engine(request), _s(request).ops
+    return {"markdown": opsmod.sitrep(eng, ops, opsmod.compute(eng, ops))}
+
+
 # ------------------------------------------------------------------ live data API
 # Real-time data and forecasts as a plain JSON API, for the dashboard or anything else.
 # Start it with POST /api/replay/start {"scenario": "live"}, or run the server with URIWATCH_LIVE=1.
@@ -459,5 +594,8 @@ def live_plan(request: Request, crews: int = 40, centers: int = 15, callers: int
 
 
 # Keep this last: the static mount catches every path that no route above claimed.
+ANALYST_DIST = ROOT / "web" / "dist"
+if WEB_DIST != ANALYST_DIST and ANALYST_DIST.exists():  # the analyst dashboard: diagnostics, evidence, replays
+    app.mount("/analyst", StaticFiles(directory=ANALYST_DIST, html=True), name="analyst")
 if WEB_DIST.exists():
     app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")

@@ -26,14 +26,18 @@ if [ ! -f backend/models/honest.json ] || [ ! -f data/replay/uri.json.gz ]; then
   exit 1
 fi
 
-if [ ! -d web/dist ]; then
-  if command -v npm >/dev/null 2>&1; then
-    echo "==> Building web app"
-    (cd web && npm install --no-fund --no-audit && npm run build)
-  else
-    echo "!! web/dist missing and npm not found: build on a laptop and copy web/dist here."
+build_web() {  # $1 dir, $2 output dir
+  if [ ! -d "$1/$2" ]; then
+    if command -v npm >/dev/null 2>&1; then
+      echo "==> Building $1"
+      (cd "$1" && npm install --no-fund --no-audit && npm run build)
+    else
+      echo "!! $1/$2 missing and npm not found: build on a laptop and copy $1/$2 here."
+    fi
   fi
-fi
+}
+build_web responder out   # the responder console (Next.js static export)
+build_web web dist        # the analyst dashboard, served at /analyst/
 
 echo "==> Serving on http://$HOST:$PORT"
 cd backend

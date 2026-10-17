@@ -154,6 +154,7 @@ class Engine:
         self.onset_hist: deque[int] = deque(maxlen=HORIZON_H)
         self.p24_hist: list[deque] = [deque(maxlen=4) for _ in range(n)]
         self.last_x, self.last_risk = [], []
+        self.last_result: dict | None = None
 
     # ----------------------------------------------------------------- helpers
     def _dominant_cause(self, contribs: list[float]) -> str:
@@ -331,7 +332,7 @@ class Engine:
         for t in range(4):
             counts[t] = tier_counts[t]
 
-        return {
+        result = {
             "t": hour["t"],
             "counties": rows,
             "tier_counts": counts,
@@ -380,6 +381,8 @@ class Engine:
             "prescribe": plan,
             "latency": self.latency.snapshot(),
         }
+        self.last_result = result
+        return result
 
     def replan(self, resources: dict[str, int]) -> dict:
         """Re-run the planner on the last scored hour with different resource levels."""

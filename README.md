@@ -13,6 +13,27 @@ When the Texas grid is stressed, which counties lose power next, and who needs h
 
 The demo replays real storms from real data. The headline test is **Winter Storm Uri (Feb 2021), which the model never saw in training.**
 
+## The responder console
+
+The app is a Next.js + React PWA for the people who send crews during a Texas power outage. The forecast uses **weather and outage data only**, so it says **where and when** outages are likely. **How many crews and how much material to commit is the responder's call**, and the app never forecasts either. One tap sends, and everything has an undo.
+
+| Tab | What it does |
+|---|---|
+| **Outages** (home) | A real county map (offline boundaries) with risk at 6, 12 and 24 hours, actual outages, and NWS alerts. Four numbers on top: out now, likely next 24 h, seniors in at-risk counties, crews ready. The top-priority county is always pinned as a **dispatch ticket**: how far the nearest free crew is, when to leave, and steppers where **you choose how many** line crews, shelter teams and outreach teams to send. One tap sends them. Tap any county for its numbers and a "send here" panel. |
+| **Teams** | Priority counties ranked from the forecast, each with the nearest free crew and drive time (distance, a road factor and a winter slowdown). Set a count per county and send, or send to the top five. Units go out with shareable work orders and a navigation link; mark them arrived, done or recalled. **Staging advisor:** forward yards that cut the average drive to the top-priority counties. **Mutual aid:** you say how much help to ask for and the app writes the request. Editable roster by depot. |
+| **Resources** | Your inventory by depot, and **targets you set** for each item. The page shows what is at or below your target and drafts a resupply request. For context it shows the forecast exposure (customers and seniors at risk) next to it, but it does not convert that into a material forecast. |
+| **More** | One-tap **shift handoff brief** (copy, share, download), data source switch (live or a storm replay), Daylight theme and Glove mode, how far to trust the forecast, and a link to the analyst dashboard. |
+
+Also: **undo** for every dispatch (10 seconds, no confirmation modal), an **offline queue** (actions taken without signal are sent when you reconnect, and the last forecast and plan stay on screen), 48 px touch targets (60 px in Glove mode), visible focus, reduced-motion support, and a county list as the accessible twin of the map.
+
+Honest notes:
+- **Crews, depots and inventory are sample data**, clearly labeled in the app. Responders edit every number. There are no default inventory targets.
+- **Travel times are planning estimates**, not routing.
+- **Offline use needs the service worker**, which this repo's preview pane blocks, so offline load was not verified here: check it in Chrome (open the app, go offline, reload).
+- The analyst workbench (drivers, evidence, benchmark) is still available at `/analyst/`. It includes a what-if planner where you set the resource levels yourself.
+
+Run it with `./run.sh` and open http://127.0.0.1:8000. For development: `cd responder && npm run dev` (calls the API on `NEXT_PUBLIC_API`, for example `NEXT_PUBLIC_API=http://127.0.0.1:8000 npm run dev`). The production build is a static export (`cd responder && npm run build`, output in `responder/out`), so the LinuxONE server needs no Node.
+
 ## Run it
 
 ```bash
@@ -125,7 +146,9 @@ About 11 million Texas county-hours; the training set keeps every severe-outage 
 | Replay sessions | `backend/uriwatch/replay.py` |
 | Live mode: provider clients, live feature builder, live session | `backend/uriwatch/live/` |
 | API + Server-Sent Events | `backend/uriwatch/api.py` |
-| Web app: brief, predict, prescribe, diagnose, describe, evidence, benchmark | `web/src/` |
+| Operations: priorities, nearest crew and drive time, responder-chosen dispatch, staging, inventory targets, handoff brief | `backend/uriwatch/ops.py` |
+| Responder console (Next.js PWA) | `responder/` |
+| Analyst dashboard: brief, predict, prescribe, diagnose, describe, evidence, benchmark | `web/src/` (served at `/analyst/`) |
 
 **The prediction:** will this county cross a severe line (at least 10% of its customers and at least 2,500 customers without power) within 6, 12 or 24 hours, given what is known right now? The model only predicts onset: counties already in severe outage are excluded from the score. Each input is clamped to the range seen in training, so a storm far bigger than any it learned from cannot push scores off the chart.
 
@@ -174,6 +197,9 @@ Reproduce: `cd backend && python -m uriwatch.train` (needs `requirements-train.t
 | GET | `/api/events` | SSE stream: each hour carries the predict, prescribe, diagnose and describe blocks |
 | POST | `/api/plan` | What-if: `{"crews": 40, "centers": 15, "callers": 25}` re-runs the planner on the current hour |
 | GET | `/api/explain/{fips}` | Why the current forecast for one county |
+| GET | `/api/ops/state`, `/api/ops/plan`, `/api/ops/sitrep` | Crews, depots and inventory; the priority counties with nearest crew, drive time and leave-by, staging sites, and inventory against your targets; the handoff brief |
+| POST | `/api/ops/dispatch`, `/api/ops/undo` | Send the units you choose to the counties you choose and get work orders; take it back |
+| PUT | `/api/ops/units`, `/api/ops/inventory`, `/api/ops/targets` | Edit the roster, stock and the targets you set |
 | GET | `/api/live/*` | Real-time forecast, grid, alerts, plan and status (see above) |
 | GET | `/api/models` | Tiers and out-of-sample metrics for the full and live-feature models |
 | GET | `/api/system` | Machine, CPU count, byte order (evidence for judges) |

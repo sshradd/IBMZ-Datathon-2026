@@ -9,11 +9,12 @@ WORKDIR /app
 COPY backend/requirements.txt backend/requirements.txt
 RUN pip install -r backend/requirements.txt
 
-# Build web/dist on a laptop first (npm run build); it is copied as static files.
+# Build responder/out and web/dist on a laptop first (npm run build); they are copied as static files.
 COPY backend/uriwatch backend/uriwatch
 COPY backend/models backend/models
 COPY data/replay data/replay
 COPY web/dist web/dist
+COPY responder/out responder/out
 COPY bench/results bench/results
 
 RUN groupadd --system --gid 10001 app \

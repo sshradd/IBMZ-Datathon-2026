@@ -4,6 +4,8 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  // Served at /analyst/ so the responder console can own the root.
+  base: "/analyst/",
   // `npm run dev` proxies the API to the backend on :8000.
   server: { proxy: { "/api": "http://127.0.0.1:8000" } },
   plugins: [
@@ -19,7 +21,8 @@ export default defineConfig({
         theme_color: "#060a14",
         background_color: "#060a14",
         display: "standalone",
-        start_url: "/",
+        start_url: "/analyst/",
+        scope: "/analyst/",
         icons: [{ src: "icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" }],
       },
       workbox: {

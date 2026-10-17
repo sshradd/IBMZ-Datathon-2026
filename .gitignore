@@ -12,3 +12,8 @@ data/raw/
 data/processed/
 data/*.log
 data/live/
+data/ops.json
+responder/node_modules/
+responder/.next/
+responder/next-env.d.ts
+responder/*.tsbuildinfo
