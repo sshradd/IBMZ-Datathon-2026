@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+web/node_modules/
+web/tsconfig.tsbuildinfo
+bench/results/*.json
+!bench/results/.gitkeep
+.DS_Store
