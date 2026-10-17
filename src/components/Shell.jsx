@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { CloudOff, Ellipsis, Map as MapIcon, Package, Pause, Play, Radio, RotateCcw, Undo2, Users, Zap } from "lucide-react";
+import { CloudOff, Ellipsis, Map as MapIcon, Package, Undo2, Users, Zap } from "lucide-react";
 import { UNDO_MS, useStore } from "../lib/store.jsx";
-import { clock, dayClock } from "../lib/format.js";
+import { clock } from "../lib/format.js";
 
 export const TABS = [
   { path: "/", label: "Outages", icon: MapIcon },
@@ -11,7 +11,7 @@ export const TABS = [
 ];
 
 export default function Shell({ path, children }) {
-  const active = p => (p === "/" ? path === "/" || path === "/start" : path.startsWith(p));
+  const active = p => (p === "/" ? path === "/" : path.startsWith(p));
   return (
     <div className="shell">
       <header className="top">
@@ -45,46 +45,20 @@ export default function Shell({ path, children }) {
   );
 }
 
+/** What the data is right now: live or recorded, the statewide temperature, weather alerts, connection. No controls. */
 function Playback() {
-  const { latest, state, connected, online, queued, pause, resume, start, startDemo, seek } = useStore();
+  const { latest, state, connected, online, queued } = useStore();
   const live = state?.scenario === "live";
-  const n = state?.n ?? 0;
-  const i = latest?.i ?? 0;
-  const [drag, setDrag] = useState(null);
-  useEffect(() => setDrag(null), [i]);
-  const shown = drag ?? i;
   const temp = latest?.diagnose.state.temp_f_mean;
   const nws = latest?.alerts?.events.filter(e => e.relevant).length ?? 0;
 
-  const toggle = () => {
-    if (!state?.scenario) return startDemo();
-    return state.running ? pause() : resume();
-  };
-
   return (
     <div className="playback">
-      <button className="icon-btn" onClick={toggle} aria-label={state?.running ? "Pause" : "Play"}>{state?.running ? <Pause size={20} /> : <Play size={20} />}</button>
-      <a href="#/start" className="icon-btn" aria-label="Back to the start screen: live or demo data" title="Start screen: live or demo data"><Radio size={20} /></a>
-      {state?.scenario && !live && (
-        <button className="icon-btn hide-s" onClick={() => start(state.scenario, state.model)} aria-label="Restart demo"><RotateCcw size={20} /></button>
-      )}
       <div className="pb-mid">
         {live ? (
           <p className="pb-live"><i className="live-dot" /> Live <span className="mono faint">{latest?.as_of ? clock(latest.as_of) : "waiting for first poll"}</span></p>
-        ) : state?.scenario ? (
-          <input
-            type="range" min={0} max={Math.max(n - 1, 1)} value={shown}
-            style={{ "--p": `${n > 1 ? (shown / (n - 1)) * 100 : 0}%` }}
-            onChange={e => setDrag(Number(e.target.value))}
-            onPointerUp={() => drag != null && seek(drag)}
-            onKeyUp={() => drag != null && seek(drag)}
-            className="scrub" aria-label="Position in the demo data"
-          />
-        ) : (
-          <p className="muted trunc">Press play to load demo outages</p>
-        )}
+        ) : null}
       </div>
-      {!live && latest && <p className="mono pb-clock">{dayClock(latest.t)}</p>}
       {typeof temp === "number" && <p className="pb-temp" title="Statewide mean temperature">{temp.toFixed(0)}°F</p>}
       {nws > 0 && <span className="chip chip-amber hide-s">NWS {nws}</span>}
       {(!online || queued > 0) && (

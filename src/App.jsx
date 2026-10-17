@@ -24,13 +24,10 @@ export default function App() {
     window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
   }, []);
-  const closePicker = () => {
-    location.hash = "#/";
-  };
   return (
     <StoreProvider>
       <Shell path={path}>
-        {path === "/teams" ? <Teams /> : path === "/resources" ? <Resources /> : path === "/more" ? <More /> : <Outages picker={path === "/start"} closePicker={closePicker} />}
+        {path === "/teams" ? <Teams /> : path === "/resources" ? <Resources /> : path === "/more" ? <More /> : <Outages />}
       </Shell>
     </StoreProvider>
   );

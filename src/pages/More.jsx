@@ -1,29 +1,15 @@
-import { Copy, Download, FileText, Radio, Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { copyText, download, shareText } from "../lib/share.js";
 import { useSetting } from "../lib/settings.js";
-import { useStore } from "../lib/store.jsx";
 
 const EVENT = { uri: "Feb 2021 outages", elliott: "Dec 2022 outages", ice2023: "Feb 2023 outages", heat2023: "Aug 2023 outages" };
 
 export default function More() {
-  const s = useStore();
-  const [theme, setTheme] = useSetting("theme", "day", "theme");
   const [glove, setGlove] = useSetting("glove", "off", "glove");
-  const [brief, setBrief] = useState(null);
   const [model, setModel] = useState(null);
 
   useEffect(() => {
     fetch("/api/models").then(r => r.json()).then(m => setModel(m.honest)).catch(() => {});
   }, []);
-
-  const makeBrief = async () => {
-    try {
-      setBrief(await s.sitrep());
-    } catch {
-      s.say("Go live or load demo outages first: there is no forecast to brief on");
-    }
-  };
 
   const ts = model?.metrics.tier_stats;
 
@@ -31,44 +17,10 @@ export default function More() {
     <div className="page narrow">
       <header className="page-h">
         <p className="eyebrow">More</p>
-        <h1>Shift <span className="accent">tools</span></h1>
+        <h1>Display and <span className="accent">trust</span></h1>
       </header>
 
       <div className="rows more-rows">
-        <section aria-label="Shift handoff">
-          <h2 className="eyebrow">Shift handoff</h2>
-          <p className="muted mt-xs">One page for the next shift: where things stand, what the plan recommends, what is short, where to stage.</p>
-          <button className="btn primary mt-s" onClick={makeBrief}><FileText size={18} /> Write handoff brief</button>
-          {brief && (
-            <>
-              <pre className="pre tall">{brief}</pre>
-              <div className="btn-row">
-                <button className="btn" onClick={() => shareText("Shift handoff", brief, s.say)}><Share2 size={18} /> Share</button>
-                <button className="btn" onClick={async () => s.say((await copyText(brief)) ? "Brief copied" : "Could not copy")}><Copy size={18} /> Copy</button>
-                <button className="btn" onClick={() => download("catch-handoff.md", brief)}><Download size={18} /> Download</button>
-              </div>
-            </>
-          )}
-        </section>
-
-        <section aria-label="Data source">
-          <h2 className="eyebrow">Data source</h2>
-          <div className="btn-row">
-            <button className="btn" onClick={() => s.start("live")}><Radio size={18} /> Live now</button>
-            {s.scenarios.some(x => x.key !== "live") && <button className="btn" onClick={() => s.startDemo()}>Demo outages</button>}
-          </div>
-          <p className="muted sm mt-s">
-            Demo outages are real recorded county outages, scored by a model that never saw them. Live mode has no county outage feed: it forecasts from weather and grid data, and its 6 and 12 hour forecasts are weak.
-            {s.state?.scenario && <> Now showing: <b>{s.state.scenario === "live" ? "live data" : "demo outages"}</b>.</>}
-          </p>
-        </section>
-
-        <section aria-label="Analyst dashboard">
-          <h2 className="eyebrow">Analyst dashboard</h2>
-          <p className="muted mt-xs">The full forecast workbench: drivers, county drill-down, grid and weather charts, out-of-sample evidence and the benchmark.</p>
-          <a className="btn mt-s" href="/analyst/">Open the analyst dashboard</a>
-        </section>
-
         <section aria-label="Display">
           <h2 className="eyebrow">Display</h2>
           <div className="rows">

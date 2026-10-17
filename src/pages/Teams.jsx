@@ -119,7 +119,6 @@ export default function Teams() {
             </section>
           )}
 
-          <MutualAid />
         </div>
       </div>
 
@@ -164,40 +163,5 @@ function FieldRow({ u, now }) {
         )}
       </div>
     </li>
-  );
-}
-
-/** A request you write yourself: you say how much help you want, the app fills in the rest. */
-function MutualAid() {
-  const s = useStore();
-  const [want, setWant] = useState({ line: 0, shelter: 0, outreach: 0 });
-  const top = (s.plan?.priorities ?? []).slice(0, 6);
-  const asked = [
-    want.line && `${want.line} line crew${want.line === 1 ? "" : "s"}`,
-    want.shelter && `${want.shelter} shelter team${want.shelter === 1 ? "" : "s"}`,
-    want.outreach && `${want.outreach} outreach team${want.outreach === 1 ? "" : "s"}`,
-  ].filter(Boolean);
-  const when = s.latest ? dayClock(s.latest.as_of ?? s.latest.t) : "";
-  const text =
-    `MUTUAL AID REQUEST · Texas power outage response${when ? ` · ${when} CST` : ""}\n\n` +
-    `We are requesting: ${asked.length ? asked.join(", ") : "[set how much help you need]"}.\n\n` +
-    (top.length ? `Highest priority counties: ${top.map(p => p.county).join(", ")}.\n` : "") +
-    (s.latest ? `Customers out now: ${s.latest.live ? "no live feed" : s.latest.out_total.toLocaleString()}.\n` : "") +
-    "Staging and contact details to follow. Please confirm availability and arrival time.";
-  return (
-    <section aria-label="Ask for help">
-      <h2 className="eyebrow">Ask for mutual aid</h2>
-      <p className="muted mt-xs">You say how much help to ask for. The app writes the request.</p>
-      <div className="stack-s mt-s">
-        <Stepper label="Line crews" value={want.line} onChange={n => setWant({ ...want, line: n })} />
-        <Stepper label="Shelter teams" value={want.shelter} onChange={n => setWant({ ...want, shelter: n })} />
-        <Stepper label="Outreach teams" value={want.outreach} onChange={n => setWant({ ...want, outreach: n })} />
-      </div>
-      <pre className="pre">{text}</pre>
-      <div className="btn-row">
-        <button className="btn primary" disabled={!asked.length} onClick={() => shareText("Mutual aid request", text, s.say)}><Share2 size={18} /> Send request</button>
-        <button className="btn" onClick={async () => s.say((await copyText(text)) ? "Request copied" : "Could not copy")}><Copy size={18} /> Copy</button>
-      </div>
-    </section>
   );
 }

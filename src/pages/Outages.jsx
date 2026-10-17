@@ -1,4 +1,4 @@
-import { AlertTriangle, List, Map as MapIcon, Play, Radio } from "lucide-react";
+import { AlertTriangle, List, Map as MapIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CountyList from "../components/CountyList.jsx";
 import CountyMap from "../components/CountyMap.jsx";
@@ -20,7 +20,7 @@ const LAYERS = [
 // bottom sheet heights on a phone: peek shows the decision, half shows the facts, full shows everything
 const SNAPS = ["258px", "58%", "calc(100% - 12px)"];
 
-export default function Outages({ picker, closePicker }) {
+export default function Outages() {
   const s = useStore();
   const { latest, plan, counties, ops, tiers, selected, setSelected, qty, setQty, series } = s;
   const [layer, setLayer] = useState("p24");
@@ -29,15 +29,15 @@ export default function Outages({ picker, closePicker }) {
   const [busy, setBusy] = useState(false);
   const [snap, setSnap] = useState(0);
 
-  // first open: load the demo outages so the map is never empty. Live stays a choice.
+  // first open with nothing running: load the recorded outages so the map is never empty
   const autoStarted = useRef(false);
   const hasDemo = s.scenarios.some(x => x.key !== "live");
   useEffect(() => {
     // wait until the server has said whether a session is already running, so a second page never restarts it
-    if (autoStarted.current || latest || !s.state || s.state.scenario || !hasDemo || picker) return;
+    if (autoStarted.current || latest || !s.state || s.state.scenario || !hasDemo) return;
     autoStarted.current = true;
     s.startDemo();
-  }, [latest, s, hasDemo, picker]);
+  }, [latest, s, hasDemo]);
 
   const priorities = useMemo(() => (plan?.priorities ?? []).filter(p => !skipped.includes(p.fips)), [plan, skipped]);
   const top = priorities[0];
@@ -74,7 +74,7 @@ export default function Outages({ picker, closePicker }) {
     else setSnap(v => Math.min(SNAPS.length - 1, Math.max(0, v + (dy < 0 ? 1 : -1))));
   };
 
-  if (!latest || picker) return <Start onBack={latest ? closePicker : undefined} />;
+  if (!latest) return <div className="start"><p className="muted">Loading the forecast…</p></div>;
 
   const now = latest.as_of ?? latest.t;
   const live = !!latest.live;
@@ -133,9 +133,8 @@ export default function Outages({ picker, closePicker }) {
           <h2 className="dec-h">No county needs a <span className="accent">crew</span></h2>
           <p className="muted mt-s">
             Nothing is rated watch or higher right now. This list updates every time the forecast does.
-            {live && " Live data is quiet, which is good news but a blank map. Load the demo outages to see the console with an active event."}
+            {live && " Live data is quiet, which is good news but a blank map."}
           </p>
-          {live && hasDemo && <button className="btn primary mt-s" onClick={() => s.startDemo()}><Play size={18} /> Load demo outages</button>}
         </div>
       )}
 
@@ -269,31 +268,5 @@ function Legend({ layer }) {
         <li key={i.t}><i style={{ background: i.c }} aria-hidden />{i.t}</li>
       ))}
     </ul>
-  );
-}
-
-function Start({ onBack }) {
-  const { scenarios, start: startRaw, startDemo, state } = useStore();
-  const start = k => {
-    startRaw(k);
-    onBack?.();
-  };
-  const demo = scenarios.some(x => x.key !== "live");
-  return (
-    <div className="start">
-      <div>
-        <p className="eyebrow"><span className="dot" /> Texas power outage response</p>
-        <h1>See where it goes dark <span className="accent">next.</span></h1>
-        <p className="lede">
-          Counties ranked by outage risk, the nearest crew, and when to leave. You choose how many crews to include and one tap adds them to a plan you can share. The app recommends; it does not dispatch. Demo outages are recorded events. Live shows today's weather and grid, and is usually quiet.
-        </p>
-        <div className="btn-row">
-          {demo && <button className="btn primary" onClick={() => { void startDemo(); onBack?.(); }}><Play size={18} /> Load demo outages</button>}
-          <button className="btn" onClick={() => start("live")}><Radio size={18} /> Go live</button>
-        </div>
-        {onBack && <button className="btn mt-s" onClick={onBack}><MapIcon size={18} /> Back to the map</button>}
-        {state?.scenario && <p className="muted sm mt-s">Waiting for the first update…</p>}
-      </div>
-    </div>
   );
 }
