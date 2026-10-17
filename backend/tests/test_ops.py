@@ -46,8 +46,8 @@ def test_dispatch_sends_exactly_what_the_responder_asks_for(state):
     out = ops.commit(eng, o, [{"fips": fips, "line": 2, "shelter": 1, "outreach": 0}])
     assert out["dispatched"] == 3 and not out["short"]
     assert len(o.units("line", "en_route")) == 2 and len(o.units("shelter", "en_route")) == 1
-    assert "WORK ORDER" in out["work_orders"][0]["text"] and "maps/dir" in out["work_orders"][0]["maps_url"]
-    assert o.log and "Sent 3 units" in o.data["log"][-1]["text"]
+    assert "RECOMMENDATION" in out["work_orders"][0]["text"] and "maps/dir" in out["work_orders"][0]["maps_url"]
+    assert o.log and "Added 3 units to the plan" in o.data["log"][-1]["text"]
 
 
 def test_dispatch_reports_when_fewer_units_are_free_than_asked(state):
@@ -82,7 +82,7 @@ def test_sitrep_is_markdown_and_says_the_decisions_are_the_responders(state):
     eng, o = state
     ops.commit(eng, o, [{"fips": ops.compute(eng, o)["priorities"][0]["fips"], "line": 1}])
     md = ops.sitrep(eng, o, ops.compute(eng, o))
-    assert md.startswith("# Situation report") and "## Out in the field" in md and "responders' call" in md
+    assert md.startswith("# Situation report") and "## Recommended plan" in md and "responders' call" in md and "nothing was dispatched" in md
 
 
 def test_ops_api_round_trip(tmp_path):

@@ -68,7 +68,7 @@ export default function Outages() {
       if (u.status !== "en_route" || !u.assignment) continue;
       const c = byFips.get(u.assignment.fips);
       const d = depotById.get(u.depot);
-      if (c && d) out.push({ id: u.id, depot: d.name, lat: c.lat, lon: c.lon, sent: true });
+      if (c && d) out.push({ id: u.id, depot: d.name, lat: c.lat, lon: c.lon, planned: true });
     }
     return out;
   }, [focus, focusPriority, ops, byFips]);
@@ -96,7 +96,7 @@ export default function Outages() {
     shelter: plan?.totals.shelter.available ?? 0,
     outreach: plan?.totals.outreach.available ?? 0,
   };
-  const send = async (fips: string[]) => {
+  const addToPlan = async (fips: string[]) => {
     setBusy(true);
     try {
       const orders = fips
@@ -125,7 +125,7 @@ export default function Outages() {
           onQty={(q) => setQty(focus.fips, q)}
           available={avail}
           busy={busy}
-          onSend={() => send([focus.fips])}
+          onSend={() => addToPlan([focus.fips])}
           onSkip={focusPriority && focus.fips === top?.fips ? () => { setSkipped((x) => [...x, focus.fips]); setSelected(null); } : undefined}
           onClose={selected ? () => setSelected(null) : undefined}
         />
@@ -170,15 +170,15 @@ export default function Outages() {
                       {p.depart_by_min === 0 ? "leave now" : `leave by ${departBy(now, p.depart_by_min)}`}
                     </p>
                   </button>
-                  <button className="btn btn-sm" onClick={() => send([p.fips])} disabled={busy || total(q) === 0}>
-                    Send {total(q)}
+                  <button className="btn btn-sm" onClick={() => addToPlan([p.fips])} disabled={busy || total(q) === 0}>
+                    Add {total(q)}
                   </button>
                 </li>
               );
             })}
           </ul>
           {nextUp.length > 6 && <p className="mt-1 text-[13px] text-ink3">and {nextUp.length - 6} more on the Teams tab</p>}
-          <p className="mt-2 text-[12.5px] text-ink3">Each row sends what you set for that county, one line crew unless you open it and choose differently.</p>
+          <p className="mt-2 text-[12.5px] text-ink3">Each row adds what you set for that county to the plan, one line crew unless you open it and choose differently.</p>
         </section>
       )}
 
@@ -187,7 +187,7 @@ export default function Outages() {
       </div>
 
       <p className="text-[12.5px] text-ink3">
-        Forecasts come from weather and outage data. How many crews to send is your call: the app suggests where and when. Crews and depots are sample data until you edit them.
+        Forecasts come from weather and outage data. The app recommends where and when. How many crews to commit, and the dispatch itself, are yours. Crews and depots are sample data until you edit them.
       </p>
     </div>
   );
@@ -231,8 +231,8 @@ export default function Outages() {
               Next 24 h <b className="num text-[16px] text-ink">≈{Math.round(latest.predict.expected_onsets[2])}</b> counties
             </span>
             <span className="pill whitespace-nowrap shadow-sm">
-              Crews ready <b className="num text-[16px] text-ink">{avail.line}</b>
-              {outUnits > 0 && <span className="text-ink3">· {outUnits} out</span>}
+              Crews free <b className="num text-[16px] text-ink">{avail.line}</b>
+              {outUnits > 0 && <span className="text-ink3">· {outUnits} in plan</span>}
             </span>
           </div>
         </div>
@@ -309,7 +309,7 @@ function Empty({ onBack }: { onBack?: () => void }) {
           See where it goes dark <span className="accent text-[1.1em]">next.</span>
         </h1>
         <p className="mt-5 max-w-xl text-[19px] leading-snug text-ink2">
-          Counties ranked by outage risk, the nearest crew, and when to leave. You decide how many to send, and one tap sends them. Demo outages are recorded events. Live shows today's weather and grid, and is usually quiet.
+          Counties ranked by outage risk, the nearest crew, and when to leave. You choose how many crews to include and one tap adds them to a plan you can share. The app recommends; it does not dispatch. Demo outages are recorded events. Live shows today's weather and grid, and is usually quiet.
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
           {demo && (

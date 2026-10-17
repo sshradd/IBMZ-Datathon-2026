@@ -13,8 +13,8 @@ export interface MapLink {
   lon: number;
   /** drive time to draw on the line, for the plan being decided */
   eta?: number;
-  /** a crew already sent: solid line */
-  sent?: boolean;
+  /** a crew already in the plan: solid line */
+  planned?: boolean;
 }
 import { pct } from "@/lib/format";
 
@@ -231,7 +231,7 @@ export default function CountyMap({
             );
           })}
 
-          {/* dispatch lines: dashed for the plan being decided, solid for crews already sent */}
+          {/* recommendation lines: dashed for the one being decided, solid for crews already in the plan */}
           {project &&
             lines.slice(0, 40).map((a) => {
               const d = depots.find((x) => x.name === a.depot);
@@ -250,8 +250,8 @@ export default function CountyMap({
                     x2={to[0]}
                     y2={to[1]}
                     stroke="var(--ink)"
-                    strokeWidth={(a.sent ? 2.2 : 1.8) / view.k}
-                    strokeDasharray={a.sent ? undefined : `${6 / view.k} ${5 / view.k}`}
+                    strokeWidth={(a.planned ? 2.2 : 1.8) / view.k}
+                    strokeDasharray={a.planned ? undefined : `${6 / view.k} ${5 / view.k}`}
                   />
                   {a.eta != null && (
                     <g transform={`translate(${mx} ${my})`}>

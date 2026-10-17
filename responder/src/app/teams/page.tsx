@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { Check, Copy, MapPin, Send, Share2, Undo2 } from "lucide-react";
+import { Copy, MapPin, Plus, Share2, Undo2 } from "lucide-react";
 import { useState } from "react";
 import Stepper from "@/components/Stepper";
 import { orderOf, qtyOf, total } from "@/lib/decisions";
@@ -19,7 +19,7 @@ export default function Teams() {
   const [busy, setBusy] = useState(false);
   const now = latest?.as_of ?? latest?.t ?? "";
 
-  const send = async (ps: Priority[]) => {
+  const addToPlan = async (ps: Priority[]) => {
     setBusy(true);
     try {
       await s.dispatch(ps.map((p) => orderOf(p, qty)).filter((o) => o.line + o.shelter + o.outreach > 0));
@@ -31,6 +31,10 @@ export default function Teams() {
   if (!ops) return <div className="p-6 text-[15px] muted">Loading crews…</div>;
   const out = ops.units.filter((u) => u.status === "en_route" || u.status === "on_site");
   const tot = plan?.totals;
+  const planText =
+    `RECOMMENDED PLAN · Texas power outage response${latest ? ` · ${dayClock(latest.as_of ?? latest.t)} CST` : ""}\n\n` +
+    out.map((u) => orderFor(u, s.counties, ops.depots, now)?.text ?? "").filter(Boolean).join("\n\n") +
+    "\n\nRecommendations only. Nothing was dispatched by this app.";
   const list = plan?.priorities.slice(0, 25) ?? [];
 
   return (
@@ -38,10 +42,10 @@ export default function Teams() {
       <header>
         <p className="eyebrow">Teams</p>
         <h1 className="display mt-2 text-[clamp(34px,6vw,56px)]">
-          Who goes <span className="accent text-[1.1em]">where</span>
+          The <span className="accent text-[1.1em]">plan</span>
         </h1>
         <p className="mt-3 max-w-2xl text-[17px] leading-snug text-ink2">
-          Counties are ranked from weather and outage data. For each one the app shows the nearest free crew and the drive time. You choose how many to send. Crews and depots are sample data: change any number and the lists redraw.
+          Counties are ranked from weather and outage data. For each one the app recommends the nearest free crew and shows the drive time. You choose how many crews to add to the plan, then copy or share it. This app recommends only: your own dispatch system sends the crews. Crews and depots are sample data.
         </p>
       </header>
 
@@ -51,9 +55,9 @@ export default function Teams() {
             <dt className="eyebrow">{TYPE_LABEL[t]}</dt>
             <dd className="num mt-2 text-[44px]">
               {tot ? tot[t].available : "—"}
-              <span className="ml-1.5 text-[16px] font-medium tracking-normal text-ink3">ready</span>
+              <span className="ml-1.5 text-[16px] font-medium tracking-normal text-ink3">free</span>
             </dd>
-            <p className="mono mt-1 text-[11.5px] text-ink3">{tot ? `${tot[t].en_route + tot[t].on_site} out · ${tot[t].total} in all` : "no forecast yet"}</p>
+            <p className="mono mt-1 text-[11.5px] text-ink3">{tot ? `${tot[t].en_route + tot[t].on_site} in plan · ${tot[t].total} in all` : "no forecast yet"}</p>
           </div>
         ))}
       </dl>
@@ -62,8 +66,8 @@ export default function Teams() {
         <section aria-label="Priority counties">
           <div className="flex items-center gap-3">
             <h2 className="eyebrow flex-1">Priority counties · {list.length}</h2>
-            <button className="btn btn-sm" onClick={() => send(list.slice(0, 5))} disabled={busy || !list.length} title="Sends what is set on each of the top five rows">
-              <Send /> Send to top 5
+            <button className="btn btn-sm" onClick={() => addToPlan(list.slice(0, 5))} disabled={busy || !list.length} title="Adds what is set on each of the top five rows to the plan">
+              <Plus /> Add top 5 to plan
             </button>
           </div>
           {!list.length && <p className="py-6 text-[15px] muted">{latest ? "No county is rated watch or higher right now." : "Go live or load demo outages to see the ranking."}</p>}
@@ -87,8 +91,8 @@ export default function Teams() {
                     </div>
                     <div className="flex w-full items-center gap-3 sm:w-auto">
                       <Stepper bare label="Line crews" value={q.line} onChange={(n) => setQty(p.fips, { ...q, line: n })} max={tot?.line.available ?? 0} />
-                      <button className="btn btn-ink !min-h-12 flex-1 sm:flex-none" onClick={() => send([p])} disabled={busy || total(q) === 0}>
-                        Send {total(q) || ""}
+                      <button className="btn btn-ink !min-h-12 flex-1 sm:flex-none" onClick={() => addToPlan([p])} disabled={busy || total(q) === 0}>
+                        Add {total(q) || ""}
                       </button>
                     </div>
                   </div>
@@ -99,10 +103,22 @@ export default function Teams() {
         </section>
 
         <div className="space-y-10">
-          <section aria-label="Out in the field">
-            <h2 className="eyebrow">Out in the field · {out.length}</h2>
+          <section aria-label="Recommended plan">
+            <div className="flex items-center gap-2">
+              <h2 className="eyebrow flex-1">Recommended plan · {out.length}</h2>
+              {out.length > 0 && (
+                <>
+                  <button className="btn btn-sm" onClick={async () => s.say((await copyText(planText)) ? "Plan copied" : "Could not copy")}>
+                    <Copy /> Copy plan
+                  </button>
+                  <button className="btn btn-sm" onClick={() => shareText("Recommended plan", planText, s.say)}>
+                    <Share2 /> Share
+                  </button>
+                </>
+              )}
+            </div>
             {out.length === 0 ? (
-              <p className="py-3 text-[15px] muted">No units out. Send crews from the list and they appear here with a work order to share.</p>
+              <p className="py-3 text-[15px] muted">Nothing in the plan yet. Add crews from the list and they appear here as recommendations you can copy or share.</p>
             ) : (
               <ul className="rows mt-1">
                 {out.map((u) => (
@@ -137,14 +153,14 @@ export default function Teams() {
 
       <section className="mt-12" aria-label="Roster">
         <h2 className="eyebrow">Roster by depot</h2>
-        <p className="mt-2 text-[15px] muted">Tap + or − to change how many units a depot has. Units already out stay out.</p>
+        <p className="mt-2 text-[15px] muted">Tap + or − to change how many units a depot has. Units already in the plan stay in it.</p>
         <div className="mt-3 grid gap-x-10 md:grid-cols-2 xl:grid-cols-3">
           {ops.depots.map((d) => (
             <div key={d.id} className="border-t border-line py-4">
               <p className="text-[20px] font-bold tracking-tight">{d.name}</p>
               <div className="mt-3 space-y-3">
                 {(["line", "shelter", "outreach"] as const).map((t) => (
-                  <Stepper key={t} label={TYPE_LABEL[t]} value={d.units[t]} note={`${d.available[t]} ready`} onChange={(n) => s.setUnitCount(d.id, t, n)} />
+                  <Stepper key={t} label={TYPE_LABEL[t]} value={d.units[t]} note={`${d.available[t]} free`} onChange={(n) => s.setUnitCount(d.id, t, n)} />
                 ))}
               </div>
             </div>
@@ -165,23 +181,18 @@ function FieldRow({ u, now }: { u: Unit; now: string }) {
         <p className="min-w-0 flex-1">
           <span className="font-semibold">{u.name}</span> <span className="text-ink3">→ {a?.county}</span>
         </p>
-        <span className={clsx("chip", u.status === "on_site" && "chip-green")}>{u.status === "on_site" ? "on site" : "en route"}</span>
+        <span className="chip">{a ? (a.depart_by_min === 0 ? "leave now" : `leave by ${departBy(now, a.depart_by_min)}`) : "planned"}</span>
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
-        {u.status === "en_route" && (
-          <button className="btn btn-sm" onClick={() => s.setUnitStatus(u.id, "on_site")}>
-            <Check /> Arrived
-          </button>
-        )}
         <button className="btn btn-sm" onClick={() => s.setUnitStatus(u.id, "available")}>
-          <Undo2 /> {u.status === "on_site" ? "Done" : "Recall"}
+          <Undo2 /> Remove from plan
         </button>
         {o && (
           <>
-            <button className="btn btn-sm" onClick={async () => s.say((await copyText(o.text)) ? "Work order copied" : "Could not copy")}>
+            <button className="btn btn-sm" onClick={async () => s.say((await copyText(o.text)) ? "Recommendation copied" : "Could not copy")}>
               <Copy /> Copy
             </button>
-            <button className="btn btn-sm" onClick={() => shareText(`Work order ${u.name}`, o.text, s.say)}>
+            <button className="btn btn-sm" onClick={() => shareText(`Recommendation ${u.name}`, o.text, s.say)}>
               <Share2 /> Share
             </button>
             <a className="btn btn-sm" href={o.maps} target="_blank" rel="noreferrer">

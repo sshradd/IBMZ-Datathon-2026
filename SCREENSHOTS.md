@@ -16,7 +16,7 @@ Judges look for screenshots of the LinuxONE instance and the platform capabiliti
 - [ ] Sidebar badge: "IBM LinuxONE"
 - [ ] `curl -s localhost:8000/api/system` output (`"byteorder": "big"`, `"is_ibm_z": true`)
 - [ ] Storm replay of Winter Storm Uri mid-stream, honest model, "Out of sample" label visible
-- [ ] Responder console on a phone: Outages with the pinned Dispatch button, the Undo bar, Teams with work orders, Resources with shortages
+- [ ] Responder console on a phone: Outages with the Add to plan button, the Undo bar, Teams with the recommended plan, Resources with shortages
 - [ ] Diagnose page with one county opened up
 
 ## Benchmark

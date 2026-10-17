@@ -135,7 +135,7 @@ function Playback() {
       )}
       {nws > 0 && <span className="chip chip-amber hidden flex-none sm:inline-flex">NWS {nws}</span>}
       {(!online || queued > 0) && (
-        <span className="chip chip-amber flex-none" title="Actions made offline are sent when you reconnect">
+        <span className="chip chip-amber flex-none" title="Changes made offline sync when you reconnect">
           <CloudOff className="h-3.5 w-3.5" aria-hidden />
           {online ? `${queued} queued` : "offline"}
         </span>
@@ -160,8 +160,8 @@ function UndoBar() {
     <div className="card fixed inset-x-3 top-[68px] z-50 mx-auto max-w-md overflow-hidden md:bottom-6 md:left-auto md:right-6 md:top-auto md:mx-0" role="status">
       <div className="flex items-center gap-3 p-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[17px] font-semibold tracking-tight">Dispatched {pendingUndo.count} {pendingUndo.count === 1 ? "unit" : "units"}</p>
-          <p className="text-[13px] muted">Work orders are ready on the Teams tab.</p>
+          <p className="text-[17px] font-semibold tracking-tight">Added {pendingUndo.count} {pendingUndo.count === 1 ? "unit" : "units"} to the plan</p>
+          <p className="text-[13px] muted">Copy or share the plan from the Teams tab. This app does not dispatch.</p>
         </div>
         <button className="btn" onClick={undo}>
           <Undo2 /> Undo

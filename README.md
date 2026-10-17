@@ -15,16 +15,16 @@ The demo replays real storms from real data. The headline test is **Winter Storm
 
 ## The responder console
 
-The app is a Next.js + React PWA for the people who send crews during a Texas power outage. The forecast uses **weather and outage data only**, so it says **where and when** outages are likely. **How many crews and how much material to commit is the responder's call**, and the app never forecasts either. One tap sends, and everything has an undo.
+The app is a Next.js + React PWA for the people who decide where crews should go during a Texas power outage. The forecast uses **weather and outage data only**, so it says **where and when** outages are likely. **How many crews and how much material to commit is the responder's call**, and the app never forecasts either. **The app only recommends: it never dispatches.** One tap adds crews to a plan you copy or share into your own dispatch system, and everything has an undo.
 
 | Tab | What it does |
 |---|---|
-| **Outages** (home) | A real county map (offline boundaries) with risk at 6, 12 and 24 hours, actual outages, and NWS alerts. Four numbers on top: out now, likely next 24 h, seniors in at-risk counties, crews ready. The top-priority county is always pinned as a **dispatch ticket**: how far the nearest free crew is, when to leave, and steppers where **you choose how many** line crews, shelter teams and outreach teams to send. One tap sends them. Tap any county for its numbers and a "send here" panel. |
-| **Teams** | Priority counties ranked from the forecast, each with the nearest free crew and drive time (distance, a road factor and a winter slowdown). Set a count per county and send, or send to the top five. Units go out with shareable work orders and a navigation link; mark them arrived, done or recalled. **Staging advisor:** forward yards that cut the average drive to the top-priority counties. **Mutual aid:** you say how much help to ask for and the app writes the request. Editable roster by depot. |
+| **Outages** (home) | A real county map (offline boundaries) with risk at 6, 12 and 24 hours, actual outages, and NWS alerts. Four numbers on top: out now, likely next 24 h, seniors in at-risk counties, crews ready. The top-priority county is always shown as the **decision**: how far the nearest free crew is, when to leave, and steppers where **you choose how many** line crews, shelter teams and outreach teams to include in the plan. One tap adds them. Tap any county for its numbers and the same panel. |
+| **Teams** | Priority counties ranked from the forecast, each with the nearest free crew and drive time (distance, a road factor and a winter slowdown). Set a count per county and add it to the plan, or add the top five. The **recommended plan** lists each crew with a shareable recommendation and a navigation link, and copies or shares as one brief; remove anything from it. **Staging advisor:** forward yards that cut the average drive to the top-priority counties. **Mutual aid:** you say how much help to ask for and the app writes the request. Editable roster by depot. |
 | **Resources** | Your inventory by depot, and **targets you set** for each item. The page shows what is at or below your target and drafts a resupply request. For context it shows the forecast exposure (customers and seniors at risk) next to it, but it does not convert that into a material forecast. |
-| **More** | One-tap **shift handoff brief** (copy, share, download), data source switch (live or a storm replay), Daylight theme and Glove mode, how far to trust the forecast, and a link to the analyst dashboard. |
+| **More** | One-tap **shift handoff brief** (copy, share, download), data source switch (demo outages or live), Daylight theme and Glove mode, how far to trust the forecast, and a link to the analyst dashboard. |
 
-Also: **undo** for every dispatch (10 seconds, no confirmation modal), an **offline queue** (actions taken without signal are sent when you reconnect, and the last forecast and plan stay on screen), 48 px touch targets (60 px in Glove mode), visible focus, reduced-motion support, and a county list as the accessible twin of the map.
+Also: **undo** for every plan change (10 seconds, no confirmation modal), an **offline queue** (changes made without signal sync when you reconnect, and the last forecast and plan stay on screen), 48 px touch targets (60 px in Glove mode), visible focus, reduced-motion support, and a county list as the accessible twin of the map.
 
 Honest notes:
 - **Crews, depots and inventory are sample data**, clearly labeled in the app. Responders edit every number. There are no default inventory targets.
@@ -146,7 +146,7 @@ About 11 million Texas county-hours; the training set keeps every severe-outage 
 | Replay sessions | `backend/uriwatch/replay.py` |
 | Live mode: provider clients, live feature builder, live session | `backend/uriwatch/live/` |
 | API + Server-Sent Events | `backend/uriwatch/api.py` |
-| Operations: priorities, nearest crew and drive time, responder-chosen dispatch, staging, inventory targets, handoff brief | `backend/uriwatch/ops.py` |
+| Operations: priorities, nearest crew and drive time, responder-chosen plan, staging, inventory targets, handoff brief | `backend/uriwatch/ops.py` |
 | Responder console (Next.js PWA) | `responder/` |
 | Analyst dashboard: brief, predict, prescribe, diagnose, describe, evidence, benchmark | `web/src/` (served at `/analyst/`) |
 
@@ -198,7 +198,7 @@ Reproduce: `cd backend && python -m uriwatch.train` (needs `requirements-train.t
 | POST | `/api/plan` | What-if: `{"crews": 40, "centers": 15, "callers": 25}` re-runs the planner on the current hour |
 | GET | `/api/explain/{fips}` | Why the current forecast for one county |
 | GET | `/api/ops/state`, `/api/ops/plan`, `/api/ops/sitrep` | Crews, depots and inventory; the priority counties with nearest crew, drive time and leave-by, staging sites, and inventory against your targets; the handoff brief |
-| POST | `/api/ops/dispatch`, `/api/ops/undo` | Send the units you choose to the counties you choose and get work orders; take it back |
+| POST | `/api/ops/dispatch`, `/api/ops/undo` | Add the units you choose to the plan for the counties you choose and get shareable recommendations; take it back (nothing is dispatched) |
 | PUT | `/api/ops/units`, `/api/ops/inventory`, `/api/ops/targets` | Edit the roster, stock and the targets you set |
 | GET | `/api/live/*` | Real-time forecast, grid, alerts, plan and status (see above) |
 | GET | `/api/models` | Tiers and out-of-sample metrics for the full and live-feature models |

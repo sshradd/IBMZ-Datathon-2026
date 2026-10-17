@@ -341,8 +341,9 @@ def staging(engine, cands: list[Cand]) -> dict:
 
 
 def commit(engine, ops: OpsState, orders: list[dict]) -> dict:
-    """Send the units the responder chose: the nearest available of each kind, per county.
-    Returns work orders to share, and where fewer units were free than asked for."""
+    """Add the units the responder chose to the plan: the nearest free one of each kind, per county.
+    Nothing is sent anywhere: this only reserves units in the plan and writes a recommendation to share.
+    Returns those recommendations, and where fewer units were free than asked for."""
     cands = {c.fips: c for c in engine._cands}
     counties = {c["fips"]: c for c in engine.counties}
     depot_by = {d[0]: d for d in DEPOTS}
@@ -384,7 +385,7 @@ def commit(engine, ops: OpsState, orders: list[dict]) -> dict:
             if got < want:
                 short.append({"fips": fips, "county": cty["name"], "type": kind, "requested": want, "assigned": got})
     if sent:
-        ops.log(when_raw, "dispatch", f"Sent {sent} units to {len({w['county'] for w in work_orders})} counties")
+        ops.log(when_raw, "plan", f"Added {sent} units to the plan for {len({w['county'] for w in work_orders})} counties")
     ops.save()
     return {"dispatched": sent, "work_orders": work_orders, "short": short}
 
@@ -394,8 +395,8 @@ def work_order(a: dict) -> dict:
     maps = f"https://www.google.com/maps/dir/?api=1&destination={a['lat']},{a['lon']}"
     why = "power already out" if a["status"] == "out" else f"outage risk {round(a['risk'] * 100)}% in 24 h"
     text = (
-        f"WORK ORDER · {a['unit_name']} ({a['size']} workers)\n"
-        f"Go to: {a['county']} County · about {a['distance_km']} km, travel {a['eta_min']} min\n"
+        f"RECOMMENDATION · {a['unit_name']} ({a['size']} workers)\n"
+        f"Suggested: {a['county']} County · about {a['distance_km']} km, travel {a['eta_min']} min\n"
         f"When: {depart} ({a['window']})\n"
         f"Why: {why}\n"
         f"Navigate: {maps}"
@@ -427,14 +428,14 @@ def sitrep(engine, ops: OpsState, plan: dict) -> str:
         )
     if not plan["priorities"]:
         lines.append("- None right now")
-    lines += ["", "## Out in the field"]
+    lines += ["", "## Recommended plan"]
     en = [u for u in ops.units() if u["status"] in ("en_route", "on_site") and u["assignment"]]
-    lines += [f"- {u['name']} -> {u['assignment']['county']} County ({u['status'].replace('_', ' ')})" for u in en] or ["- No units out"]
+    lines += [f"- {u['name']} -> {u['assignment']['county']} County (leave {'now' if u['assignment']['depart_by_min'] == 0 else 'in ' + str(u['assignment']['depart_by_min'] // 60) + ' h ' + str(u['assignment']['depart_by_min'] % 60).zfill(2) + ' min'}, travel {u['assignment']['eta_min']} min)" for u in en] or ["- Nothing in the plan yet"]
     inv = plan["inventory"]
     lines += ["", "## Inventory", f"- Below the targets we set: {', '.join(inv['below_target']) if inv['below_target'] else 'none (or no targets set)'}"]
     st = plan["staging"]["sites"]
     if st:
         lines += ["", "## Staging", f"- Candidate forward yard: {st[0]['name']} (average travel falls from {plan['staging']['baseline_eta_min']} to {st[0]['avg_eta_min']} min)"]
     lines += ["", "## Decisions log"] + [f"- {stamp(x['t'])}: {x['text']}" for x in ops.data["log"][-8:]]
-    lines += ["", "_Crew and inventory figures are sample data unless edited. Forecasts are model output from weather and outage data, not certainty. How many crews and how much material to commit is the responders' call._"]
+    lines += ["", "_Crew and inventory figures are sample data unless edited. Forecasts are model output from weather and outage data, not certainty. These are recommendations only: nothing was dispatched by this app. How many crews and how much material to commit is the responders' call._"]
     return "\n".join(lines)

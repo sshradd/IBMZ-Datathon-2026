@@ -54,7 +54,7 @@ Pure-Python server and JSON model, so it runs on s390x with no native wheels exc
 
 ## Responder console
 
-A Next.js PWA for people sending crews. The forecast uses weather and outage data only, so it ranks counties and times them; the responder decides how many crews and how much material to commit. Outages (map, pinned dispatch ticket with responder-set counts, one-tap dispatch with undo), Teams (priority counties with nearest crew and drive time, work orders, staging advisor, mutual-aid request the responder sizes, editable roster), Resources (inventory with targets the responder sets, resupply request), More (handoff brief, data source, display options). Crews, depots and inventory are labeled sample data that responders edit. Offline: the last forecast and plan stay on screen and actions queue until reconnect.
+A Next.js PWA for people deciding where crews should go. It recommends only and never dispatches. The forecast uses weather and outage data only, so it ranks counties and times them; the responder decides how many crews and how much material to commit. Outages (map, county decision with responder-set counts, one-tap add to plan with undo), Teams (priority counties with nearest crew and drive time, a shareable recommended plan, staging advisor, mutual-aid request the responder sizes, editable roster), Resources (inventory with targets the responder sets, resupply request), More (handoff brief, data source, display options). Crews, depots and inventory are labeled sample data that responders edit. Offline: the last forecast and plan stay on screen and changes queue until reconnect.
 
 ## Live mode
 

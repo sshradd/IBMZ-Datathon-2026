@@ -10,7 +10,7 @@ import { TIER_NAMES } from "@/lib/types";
 
 type Avail = { line: number; shelter: number; outreach: number };
 
-/** The decision for one county: what is happening, how long a crew takes, and how many you send. */
+/** The decision for one county: what is happening, how long a crew takes, and how many crews you add to the plan. */
 export default function Decision({
   county,
   index,
@@ -74,7 +74,7 @@ export default function Decision({
               {n.depot} crew is <b>{mins(n.eta_min)}</b> away. {leaveNow ? <span className="accent text-[22px]">Leave now.</span> : <span className="accent text-[22px]">Leave by {departBy(now, priority.depart_by_min)}.</span>}
             </>
           ) : (
-            <>No line crew is free. <span className="accent text-[22px]">Recall one.</span></>
+            <>No line crew is free. <span className="accent text-[22px]">Free one up.</span></>
           )
         ) : (
           <span className="muted">Not on the priority list right now.</span>
@@ -84,11 +84,11 @@ export default function Decision({
       <div className="mt-4 flex items-center gap-3">
         <Stepper bare label="Line crews" value={qty.line} max={available.line} onChange={(v) => onQty({ ...qty, line: v })} />
         <button className="btn btn-ink min-w-0 flex-1" onClick={onSend} disabled={busy || total(qty) === 0}>
-          {total(qty) ? `Dispatch ${total(qty)}` : "Choose how many"}
+          {total(qty) ? `Add ${total(qty)} to plan` : "Choose how many"}
         </button>
       </div>
       <p className="mono mt-2 text-[11.5px] text-ink3">
-        {available.line} line crews ready{total(qty) ? ` · sends ${qtyText(qty)}` : ""}
+        {available.line} line crews free{total(qty) ? ` · adds ${qtyText(qty)}` : ""}
       </p>
 
       <dl className="mt-5 grid grid-cols-3 border-y border-line py-3">
@@ -107,10 +107,10 @@ export default function Decision({
 
       <div className="rows mt-4">
         <div className="py-3">
-          <Stepper label="Shelter teams" value={qty.shelter} max={available.shelter} note={`${available.shelter} ready`} onChange={(v) => onQty({ ...qty, shelter: v })} />
+          <Stepper label="Shelter teams" value={qty.shelter} max={available.shelter} note={`${available.shelter} free`} onChange={(v) => onQty({ ...qty, shelter: v })} />
         </div>
         <div className="py-3">
-          <Stepper label="Outreach teams" value={qty.outreach} max={available.outreach} note={`${available.outreach} ready`} onChange={(v) => onQty({ ...qty, outreach: v })} />
+          <Stepper label="Outreach teams" value={qty.outreach} max={available.outreach} note={`${available.outreach} free`} onChange={(v) => onQty({ ...qty, outreach: v })} />
         </div>
       </div>
 

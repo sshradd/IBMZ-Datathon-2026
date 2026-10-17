@@ -53,7 +53,7 @@ export default function More() {
       <div className="rows mt-6 border-t border-line [&>section]:py-7">
         <section aria-label="Shift handoff">
           <h2 className="eyebrow">Shift handoff</h2>
-          <p className="mt-2 text-[16px] muted">One page for the next shift: where things stand, what was sent, what is short, where to stage.</p>
+          <p className="mt-2 text-[16px] muted">One page for the next shift: where things stand, what the plan recommends, what is short, where to stage.</p>
           <button className="btn btn-ink mt-4" onClick={makeBrief}>
             <FileText /> Write handoff brief
           </button>

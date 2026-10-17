@@ -62,7 +62,7 @@ function writeQueue(q: Queued[]) {
   }
 }
 
-/** How many of each unit the responder wants to send to one county. */
+/** How many of each unit the responder wants to include in the plan for one county. */
 export interface Qty {
   line: number;
   shelter: number;
@@ -200,13 +200,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     void refreshPlan();
   }, [refreshOps, refreshPlan]);
 
-  /** Send a change. Offline, it joins the queue and goes out when the connection returns. */
+  /** Save a change. Offline, it joins the queue and syncs when the connection returns. */
   const mutate = useCallback(
     async <T,>(method: string, path: string, body: unknown | undefined, label: string): Promise<T | null> => {
       if (!navigator.onLine) {
         writeQueue([...readQueue(), { method, path, body, label }]);
         setQueued(readQueue().length);
-        say(`Offline: "${label}" is queued and will send when you reconnect`);
+        say(`Offline: "${label}" is saved and will sync when you reconnect`);
         return null;
       }
       try {
@@ -340,7 +340,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         "POST",
         "/api/ops/dispatch",
         { orders },
-        "Dispatch",
+        "Add to plan",
       );
       if (!r) return [];
       await Promise.all([refreshOps(), refreshPlan()]);
@@ -348,9 +348,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         window.clearTimeout(undoTimer.current);
         setPendingUndo({ count: r.dispatched, fips: orders.map((o) => o.fips), until: Date.now() + UNDO_MS });
         undoTimer.current = window.setTimeout(() => setPendingUndo(null), UNDO_MS);
-        if (r.short.length) say(`Only ${r.dispatched} units were free: ${r.short.map((x) => `${x.county} got ${x.assigned} of ${x.requested} ${x.type}`).join(", ")}`);
+        if (r.short.length) say(`Only ${r.dispatched} units were free for the plan: ${r.short.map((x) => `${x.county} got ${x.assigned} of ${x.requested} ${x.type}`).join(", ")}`);
       } else {
-        say("No units are free to send");
+        say("No units are free to add to the plan");
       }
       return r.work_orders;
     },
@@ -361,8 +361,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const p = pendingUndo;
     window.clearTimeout(undoTimer.current);
     setPendingUndo(null);
-    const r = await mutate<{ recalled: number }>("POST", "/api/ops/undo", { fips: p?.fips ?? null }, "Undo dispatch");
-    if (r) say(`Recalled ${r.recalled} units`);
+    const r = await mutate<{ recalled: number }>("POST", "/api/ops/undo", { fips: p?.fips ?? null }, "Undo add to plan");
+    if (r) say(`Removed ${r.recalled} units from the plan`);
     await Promise.all([refreshOps(), refreshPlan()]);
   }, [pendingUndo, mutate, refreshOps, refreshPlan, say]);
 

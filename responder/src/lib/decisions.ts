@@ -6,7 +6,7 @@ export function plural(n: number, one: string, many = `${one}s`): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-/** "2 line crews · 1 shelter team", for what the responder has chosen to send. */
+/** "2 line crews · 1 shelter team", for what the responder has chosen to include in the plan. */
 export function qtyText(q: Qty): string {
   const parts = [];
   if (q.line) parts.push(plural(q.line, "line crew"));

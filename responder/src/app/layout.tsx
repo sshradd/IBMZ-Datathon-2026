@@ -12,7 +12,7 @@ import Providers from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: "Uri Watch Responder",
-  description: "Texas power outage dispatch: where to send crews, how long it takes, and what material is short.",
+  description: "Texas power outage response: where crews are most needed, how long they take to arrive, and what material is short.",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
   appleWebApp: { capable: true, title: "Uri Watch", statusBarStyle: "default" },
