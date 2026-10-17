@@ -28,66 +28,67 @@ export default function Teams() {
     }
   };
 
-  if (!ops) return <div className="p-6 text-[14px] text-mute">Loading crews…</div>;
+  if (!ops) return <div className="p-6 text-[15px] muted">Loading crews…</div>;
   const out = ops.units.filter((u) => u.status === "en_route" || u.status === "on_site");
   const tot = plan?.totals;
   const list = plan?.priorities.slice(0, 25) ?? [];
 
   return (
-    <div className="mx-auto max-w-7xl p-3 md:p-5">
-      <header className="mb-3">
-        <p className="label">Teams</p>
-        <h1 className="cond text-[44px] uppercase leading-[0.95]">Who goes where</h1>
-        <p className="mt-1 max-w-2xl text-[14px] text-mute">
+    <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-10">
+      <header>
+        <p className="eyebrow">Teams</p>
+        <h1 className="display mt-2 text-[clamp(34px,6vw,56px)]">
+          Who goes <span className="accent text-[1.1em]">where</span>
+        </h1>
+        <p className="mt-3 max-w-2xl text-[17px] leading-snug text-ink2">
           Counties are ranked from weather and outage data. For each one the app shows the nearest free crew and the drive time. You choose how many to send. Crews and depots are sample data: change any number and the lists redraw.
         </p>
       </header>
 
-      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
+      <dl className="mt-6 grid grid-cols-3 divide-x divide-line border-y border-line">
         {(["line", "shelter", "outreach"] as const).map((t) => (
-          <div key={t} className="panel px-3.5 py-3">
-            <p className="label">{TYPE_LABEL[t]}</p>
-            <p className="cond mt-1 text-[44px] leading-[0.9] tnum">
+          <div key={t} className="px-4 py-4 first:pl-0">
+            <dt className="eyebrow">{TYPE_LABEL[t]}</dt>
+            <dd className="num mt-2 text-[44px]">
               {tot ? tot[t].available : "—"}
-              <span className="text-[24px] text-mute"> ready</span>
-            </p>
-            <p className="mt-1 text-[12.5px] text-mute">{tot ? `${tot[t].en_route + tot[t].on_site} out · ${tot[t].total} in all` : "no forecast yet"}</p>
+              <span className="ml-1.5 text-[16px] font-medium tracking-normal text-ink3">ready</span>
+            </dd>
+            <p className="mono mt-1 text-[11.5px] text-ink3">{tot ? `${tot[t].en_route + tot[t].on_site} out · ${tot[t].total} in all` : "no forecast yet"}</p>
           </div>
         ))}
-      </div>
+      </dl>
 
-      <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-        <section className="panel p-4" aria-label="Priority counties">
-          <div className="mb-2 flex items-center gap-3">
-            <h2 className="label flex-1">Priority counties · {list.length}</h2>
-            <button className="btn btn--sm" onClick={() => send(list.slice(0, 5))} disabled={busy || !list.length} title="Sends what is set on each of the top five rows">
+      <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+        <section aria-label="Priority counties">
+          <div className="flex items-center gap-3">
+            <h2 className="eyebrow flex-1">Priority counties · {list.length}</h2>
+            <button className="btn btn-sm" onClick={() => send(list.slice(0, 5))} disabled={busy || !list.length} title="Sends what is set on each of the top five rows">
               <Send /> Send to top 5
             </button>
           </div>
-          {!list.length && <p className="py-6 text-[14px] text-mute">{latest ? "No county is rated watch or higher right now." : "Start a storm replay or go live to see the ranking."}</p>}
-          <ul>
+          {!list.length && <p className="py-6 text-[15px] muted">{latest ? "No county is rated watch or higher right now." : "Start a storm replay or go live to see the ranking."}</p>}
+          <ul className="rows mt-1">
             {list.map((p) => {
               const q = qtyOf(qty, p.fips);
               return (
-                <li key={p.fips} className="border-t border-rule/60 py-3 first:border-t-0">
-                  <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+                <li key={p.fips} className="py-4">
+                  <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
                     <div className="min-w-0 flex-1 basis-56">
                       <p className="flex flex-wrap items-center gap-2">
-                        <span className="cond text-[28px] uppercase leading-none">{p.county}</span>
-                        <span className={clsx("tag", p.status === "out" || p.status === "act" ? "tag--fault" : p.status === "prepare" ? "tag--amber" : "tag--ice")}>{p.status === "out" ? "power out" : p.status}</span>
+                        <span className="text-[24px] font-bold leading-none tracking-tight">{p.county}</span>
+                        <span className={clsx("chip", p.status === "out" || p.status === "act" ? "chip-red" : p.status === "prepare" ? "chip-amber" : "")}>{p.status === "out" ? "power out" : p.status}</span>
                       </p>
-                      <p className="mt-1 text-[13.5px] text-mute">
+                      <p className="mt-1.5 text-[14.5px] muted">
                         {p.status === "out" ? `${compact(p.out)} customers out` : `${pct(p.risk, 0)} risk, ${p.window}`} · {compact(p.seniors_exposed)} seniors
                       </p>
-                      <p className="text-[13px] text-mute">
-                        {p.nearest ? `nearest ${p.nearest.depot}, drive ${mins(p.nearest.eta_min)}` : "no crew free"} ·{" "}
-                        {p.depart_by_min === 0 ? "leave now" : `leave by ${departBy(now, p.depart_by_min)}`}
+                      <p className="text-[14px] text-ink3">
+                        {p.nearest ? `nearest ${p.nearest.depot}, drive ${mins(p.nearest.eta_min)}` : "no crew free"} · {p.depart_by_min === 0 ? "leave now" : `leave by ${departBy(now, p.depart_by_min)}`}
                       </p>
                     </div>
-                    <div className="w-full sm:w-[230px]">
-                      <Stepper label="Line crews" value={q.line} onChange={(n) => setQty(p.fips, { ...q, line: n })} max={tot?.line.available ?? 0} />
-                      <button className="btn btn--go mt-2 w-full !text-[20px]" onClick={() => send([p])} disabled={busy || total(q) === 0}>
-                        <Send /> Send {total(q) || ""}
+                    <div className="flex w-full items-center gap-3 sm:w-auto">
+                      <Stepper bare label="Line crews" value={q.line} onChange={(n) => setQty(p.fips, { ...q, line: n })} max={tot?.line.available ?? 0} />
+                      <button className="btn btn-ink !min-h-12 flex-1 sm:flex-none" onClick={() => send([p])} disabled={busy || total(q) === 0}>
+                        Send {total(q) || ""}
                       </button>
                     </div>
                   </div>
@@ -97,13 +98,13 @@ export default function Teams() {
           </ul>
         </section>
 
-        <div className="space-y-3">
-          <section className="panel p-4" aria-label="Out in the field">
-            <h2 className="label mb-1">Out in the field · {out.length}</h2>
+        <div className="space-y-10">
+          <section aria-label="Out in the field">
+            <h2 className="eyebrow">Out in the field · {out.length}</h2>
             {out.length === 0 ? (
-              <p className="py-3 text-[14px] text-mute">No units out. Send crews from the list and they appear here with a work order to share.</p>
+              <p className="py-3 text-[15px] muted">No units out. Send crews from the list and they appear here with a work order to share.</p>
             ) : (
-              <ul>
+              <ul className="rows mt-1">
                 {out.map((u) => (
                   <FieldRow key={u.id} u={u} now={now} />
                 ))}
@@ -112,20 +113,18 @@ export default function Teams() {
           </section>
 
           {plan && plan.staging.sites.length > 0 && (
-            <section className="panel p-4" aria-label="Staging advisor">
-              <h2 className="label">Where to stage</h2>
-              <p className="mt-1 text-[14px] text-mute">
-                Forward yards that cut the average drive to the highest-priority counties, from {mins(plan.staging.baseline_eta_min ?? 0)} today.
-              </p>
-              <ol className="mt-2">
+            <section aria-label="Staging advisor">
+              <h2 className="eyebrow">Where to stage</h2>
+              <p className="mt-2 text-[15px] muted">Forward yards that cut the average drive to the highest-priority counties, from {mins(plan.staging.baseline_eta_min ?? 0)} today.</p>
+              <ol className="rows mt-1">
                 {plan.staging.sites.map((st, i) => (
-                  <li key={st.name} className="flex items-center gap-3 border-t border-rule/60 py-2.5 first:border-t-0">
-                    <span className="cond grid h-8 w-8 place-items-center rounded-full border border-mint text-[20px] text-mint">{i + 1}</span>
+                  <li key={st.name} className="flex items-center gap-3 py-3">
+                    <span className="mono grid h-8 w-8 flex-none place-items-center rounded-full border border-line2 text-[13px]">{i + 1}</span>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold">{st.name}</p>
-                      <p className="text-[12.5px] text-mute">average drive {mins(st.avg_eta_min)}</p>
+                      <p className="text-[13.5px] muted">average drive {mins(st.avg_eta_min)}</p>
                     </div>
-                    <span className="tag tag--mint">−{st.saves_min} min</span>
+                    <span className="chip chip-green">−{st.saves_min} min</span>
                   </li>
                 ))}
               </ol>
@@ -136,14 +135,14 @@ export default function Teams() {
         </div>
       </div>
 
-      <section className="panel mt-3 p-4" aria-label="Roster">
-        <h2 className="label">Roster by depot</h2>
-        <p className="mt-1 text-[13.5px] text-mute">Tap + or − to change how many units a depot has. Units already out stay out.</p>
-        <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <section className="mt-12" aria-label="Roster">
+        <h2 className="eyebrow">Roster by depot</h2>
+        <p className="mt-2 text-[15px] muted">Tap + or − to change how many units a depot has. Units already out stay out.</p>
+        <div className="mt-3 grid gap-x-10 md:grid-cols-2 xl:grid-cols-3">
           {ops.depots.map((d) => (
-            <div key={d.id} className="rounded-md border border-rule bg-panel2 p-3">
-              <p className="cond text-[26px] uppercase leading-none">{d.name}</p>
-              <div className="mt-2 space-y-1.5">
+            <div key={d.id} className="border-t border-line py-4">
+              <p className="text-[20px] font-bold tracking-tight">{d.name}</p>
+              <div className="mt-3 space-y-3">
                 {(["line", "shelter", "outreach"] as const).map((t) => (
                   <Stepper key={t} label={TYPE_LABEL[t]} value={d.units[t]} note={`${d.available[t]} ready`} onChange={(n) => s.setUnitCount(d.id, t, n)} />
                 ))}
@@ -161,31 +160,31 @@ function FieldRow({ u, now }: { u: Unit; now: string }) {
   const o = s.ops ? orderFor(u, s.counties, s.ops.depots, now) : null;
   const a = u.assignment;
   return (
-    <li className="border-t border-rule/60 py-3 first:border-t-0">
+    <li className="py-3">
       <div className="flex items-center gap-2">
         <p className="min-w-0 flex-1">
-          <span className="font-semibold">{u.name}</span> <span className="text-mute">→ {a?.county}</span>
+          <span className="font-semibold">{u.name}</span> <span className="text-ink3">→ {a?.county}</span>
         </p>
-        <span className={clsx("tag", u.status === "on_site" ? "tag--mint" : "tag--ice")}>{u.status === "on_site" ? "on site" : "en route"}</span>
+        <span className={clsx("chip", u.status === "on_site" && "chip-green")}>{u.status === "on_site" ? "on site" : "en route"}</span>
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
         {u.status === "en_route" && (
-          <button className="btn btn--sm" onClick={() => s.setUnitStatus(u.id, "on_site")}>
+          <button className="btn btn-sm" onClick={() => s.setUnitStatus(u.id, "on_site")}>
             <Check /> Arrived
           </button>
         )}
-        <button className="btn btn--sm" onClick={() => s.setUnitStatus(u.id, "available")}>
+        <button className="btn btn-sm" onClick={() => s.setUnitStatus(u.id, "available")}>
           <Undo2 /> {u.status === "on_site" ? "Done" : "Recall"}
         </button>
         {o && (
           <>
-            <button className="btn btn--sm" onClick={async () => s.say((await copyText(o.text)) ? "Work order copied" : "Could not copy")}>
+            <button className="btn btn-sm" onClick={async () => s.say((await copyText(o.text)) ? "Work order copied" : "Could not copy")}>
               <Copy /> Copy
             </button>
-            <button className="btn btn--sm" onClick={() => shareText(`Work order ${u.name}`, o.text, s.say)}>
+            <button className="btn btn-sm" onClick={() => shareText(`Work order ${u.name}`, o.text, s.say)}>
               <Share2 /> Share
             </button>
-            <a className="btn btn--sm" href={o.maps} target="_blank" rel="noreferrer">
+            <a className="btn btn-sm" href={o.maps} target="_blank" rel="noreferrer">
               <MapPin /> Navigate
             </a>
           </>
@@ -213,17 +212,17 @@ function MutualAid() {
     (s.latest ? `Customers out now: ${s.latest.live ? "no live feed" : s.latest.out_total.toLocaleString()}.\n` : "") +
     "Staging and contact details to follow. Please confirm availability and arrival time.";
   return (
-    <section className="panel p-4" aria-label="Ask for help">
-      <h2 className="label">Ask for mutual aid</h2>
-      <p className="mt-1 text-[14px] text-mute">You say how much help to ask for. The app writes the request.</p>
-      <div className="mt-2 space-y-1.5">
+    <section aria-label="Ask for help">
+      <h2 className="eyebrow">Ask for mutual aid</h2>
+      <p className="mt-2 text-[15px] muted">You say how much help to ask for. The app writes the request.</p>
+      <div className="mt-3 space-y-3">
         <Stepper label="Line crews" value={want.line} onChange={(n) => setWant({ ...want, line: n })} />
         <Stepper label="Shelter teams" value={want.shelter} onChange={(n) => setWant({ ...want, shelter: n })} />
         <Stepper label="Outreach teams" value={want.outreach} onChange={(n) => setWant({ ...want, outreach: n })} />
       </div>
-      <pre className="mono scroll-thin mt-3 max-h-36 overflow-auto whitespace-pre-wrap rounded-md border border-rule bg-night p-3 text-[12.5px] text-frost">{text}</pre>
+      <pre className="mono scroll-thin mt-4 max-h-36 overflow-auto whitespace-pre-wrap rounded-xl border border-line bg-card2 p-3 text-[12.5px]">{text}</pre>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button className="btn btn--go !text-[20px]" disabled={!asked.length} onClick={() => shareText("Mutual aid request", text, s.say)}>
+        <button className="btn btn-ink" disabled={!asked.length} onClick={() => shareText("Mutual aid request", text, s.say)}>
           <Share2 /> Send request
         </button>
         <button className="btn" onClick={async () => s.say((await copyText(text)) ? "Request copied" : "Could not copy")}>

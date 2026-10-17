@@ -11,6 +11,10 @@ export interface MapLink {
   depot: string;
   lat: number;
   lon: number;
+  /** drive time to draw on the line, for the plan being decided */
+  eta?: number;
+  /** a crew already sent: solid line */
+  sent?: boolean;
 }
 import { pct } from "@/lib/format";
 
@@ -219,7 +223,7 @@ export default function CountyMap({
                 data-selected={selected === p.fips}
                 fill={fill}
                 fillOpacity={opacity}
-                style={sevOutline(p.fips) ? { stroke: "var(--frost)", strokeWidth: 1.3 } : undefined}
+                style={sevOutline(p.fips) ? { stroke: "var(--ink)", strokeWidth: 1.2 } : undefined}
                 onClick={() => moved.current < 6 && onSelect(p.fips)}
               >
                 <title>{`${p.name} County · ${label(p.fips)}`}</title>
@@ -227,25 +231,37 @@ export default function CountyMap({
             );
           })}
 
-          {/* dispatch lines: solid for units already sent, dashed for the plan */}
+          {/* dispatch lines: dashed for the plan being decided, solid for crews already sent */}
           {project &&
             lines.slice(0, 40).map((a) => {
               const d = depots.find((x) => x.name === a.depot);
               const from = d && pt(d.lon, d.lat);
               const to = pt(a.lon, a.lat);
               if (!from || !to) return null;
+              const mx = (from[0] + to[0]) / 2;
+              const my = (from[1] + to[1]) / 2;
+              const fs = 15 / Math.sqrt(view.k);
+              const w = (String(a.eta ?? "").length + 5) * fs * 0.62;
               return (
-                <line
-                  key={a.id}
-                  x1={from[0]}
-                  y1={from[1]}
-                  x2={to[0]}
-                  y2={to[1]}
-                  stroke="var(--lightning)"
-                  strokeWidth={1.4 / view.k}
-                  strokeOpacity={0.55}
-                  strokeDasharray={`${5 / view.k} ${4 / view.k}`}
-                />
+                <g key={a.id} pointerEvents="none">
+                  <line
+                    x1={from[0]}
+                    y1={from[1]}
+                    x2={to[0]}
+                    y2={to[1]}
+                    stroke="var(--ink)"
+                    strokeWidth={(a.sent ? 2.2 : 1.8) / view.k}
+                    strokeDasharray={a.sent ? undefined : `${6 / view.k} ${5 / view.k}`}
+                  />
+                  {a.eta != null && (
+                    <g transform={`translate(${mx} ${my})`}>
+                      <rect x={-w / 2} y={-fs * 0.95} width={w} height={fs * 1.9} rx={fs * 0.5} fill="var(--ink)" />
+                      <text textAnchor="middle" y={fs * 0.36} fontSize={fs} fontFamily="var(--font-mono)" fontWeight={500} fill="var(--bg)">
+                        {a.eta} min
+                      </text>
+                    </g>
+                  )}
+                </g>
               );
             })}
 
@@ -261,8 +277,8 @@ export default function CountyMap({
             const s = 9 / Math.sqrt(view.k);
             return (
               <g key={d.id} transform={`translate(${q[0]} ${q[1]})`} pointerEvents="none">
-                <rect x={-s} y={-s} width={s * 2} height={s * 2} fill="var(--night)" stroke="var(--frost)" strokeWidth={2 / view.k} transform="rotate(45)" />
-                <text y={-s * 1.9} textAnchor="middle" fontSize={15 / Math.sqrt(view.k)} fontFamily="var(--font-mono)" fill="var(--frost)" fontWeight={500}>
+                <rect x={-s} y={-s} width={s * 2} height={s * 2} fill="var(--card)" stroke="var(--ink)" strokeWidth={2 / view.k} transform="rotate(45)" />
+                <text y={-s * 1.9} textAnchor="middle" fontSize={15 / Math.sqrt(view.k)} fontFamily="var(--font-mono)" fill="var(--ink-2)" fontWeight={500}>
                   {d.name.split(" ")[0].slice(0, 3).toUpperCase()}
                 </text>
               </g>
@@ -275,15 +291,15 @@ export default function CountyMap({
             const r = 12 / Math.sqrt(view.k);
             return (
               <g key={s.name} transform={`translate(${q[0]} ${q[1]})`} pointerEvents="none">
-                <circle r={r} fill="none" stroke="var(--mint)" strokeWidth={3 / view.k} />
-                <circle r={r * 0.35} fill="var(--mint)" />
+                <circle r={r} fill="none" stroke="var(--green)" strokeWidth={3 / view.k} />
+                <circle r={r * 0.35} fill="var(--green)" />
               </g>
             );
           })}
         </g>
       </svg>
 
-      <div className="absolute right-2 top-2 flex flex-col gap-1.5">
+      <div className="absolute right-3 top-3 flex flex-col gap-2">
         <MapButton label="Zoom in" onClick={() => zoomAt(W / 2, H / 2, 1.5)}>
           <Plus />
         </MapButton>
@@ -300,11 +316,7 @@ export default function CountyMap({
 
 function MapButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button
-      aria-label={label}
-      onClick={onClick}
-      className="grid h-11 w-11 place-items-center rounded-md border border-rule bg-panel/90 text-frost backdrop-blur hover:border-frost [&>svg]:h-5 [&>svg]:w-5"
-    >
+    <button aria-label={label} onClick={onClick} className="map-btn">
       {children}
     </button>
   );

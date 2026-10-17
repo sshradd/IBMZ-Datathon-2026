@@ -76,8 +76,9 @@ Exact versions: `web/package-lock.json`.
 | us-atlas (county boundaries, derived from US Census data) | ISC | https://github.com/topojson/us-atlas |
 | Lucide icons | ISC | https://github.com/lucide-icons/lucide |
 | clsx | MIT | https://github.com/lukeed/clsx |
-| Barlow Condensed (via @fontsource, self-hosted) | OFL-1.1 | https://github.com/jpt/barlow |
-| IBM Plex Sans and Plex Mono (via @fontsource, self-hosted) | OFL-1.1 | https://github.com/IBM/plex |
+| Inter Tight (via @fontsource, self-hosted) | OFL-1.1 | https://github.com/rsms/inter |
+| JetBrains Mono (via @fontsource, self-hosted) | OFL-1.1 | https://github.com/JetBrains/JetBrainsMono |
+| Instrument Serif italic (via @fontsource, self-hosted) | OFL-1.1 | https://github.com/Instrument/instrument-serif |
 | Pillow (one-off, to draw the PWA icons) | HPND | https://github.com/python-pillow/Pillow |
 
 Crews, depots and inventory are our own sample data, labeled as such in the app.
@@ -91,6 +92,8 @@ Crews, depots and inventory are our own sample data, labeled as such in the app.
 
 - Vite + React + `vite-plugin-pwa` setup and pinned `requirements.txt` / non-root `python:3.12-slim` Dockerfile conventions the team already knew. All code in this repo was written during the event.
 - **Design reference.** The layout and information hierarchy (a one-sentence situation brief, KPI cards, numbered recommendations with the action, projected impact and confidence, "it suggests, you decide") follow the team's earlier product dashboards. Design ideas only: no stylesheet, component or other file was copied from any earlier project. Every line of CSS and TSX in `web/src` was written during the event, including the palette (storm-night navy, lightning yellow, ice blue, hot pink).
+
+- **Responder console look.** Paper-white ground with dot texture, near-black primary buttons, white outlined secondary buttons, mono small labels and one italic serif word per headline follow the team's own BizFalcon site. Only the visual language and typeface choices carry over; the CSS and components were written fresh for this app.
 
 ## AI assistance
 
