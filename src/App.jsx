@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Zap, Download, Menu, AlertTriangle, Clock, Map as MapIcon, Users, Hospital, Truck,
   Building2, Droplets, ShieldCheck, Radio, Printer, ChevronRight, ArrowRight, Filter, Activity } from "lucide-react";
-import CountyMap, { riskColor } from "./components/CountyMap.jsx";
+import CountyMap, { riskColor, ramp } from "./components/CountyMap.jsx";
 import { counties, summary, actions, facilityStats } from "./data.js";
 import { allocate, slotLabel } from "./lib/dispatch.js";
 import { buildSms, sendSms, downloadBriefPdf } from "./lib/briefing.js";
@@ -25,24 +25,24 @@ export default function App() {
   return (
     <div className="app">
       <header className="top">
-        <div className="brand"><div className="logo"><Zap size={22} /></div><b>CATCH</b><span>Grid Resilience Command</span></div>
+        <div className="brand"><div className="logo"><Zap size={20} /></div><b>CATCH</b><span>Grid Resilience Command</span></div>
         <div className="top-r">
-          <span className="live"><i /> LIVE</span>
-          <button className="icon-btn"><Menu size={18} /></button>
-          <button className="btn primary" onClick={() => downloadBriefPdf(summary, ranked, plan)}><Download size={18} /> Generate briefing</button>
+          <span className="live"><i /> Live</span>
+          <button className="icon-btn" aria-label="Menu"><Menu size={20} /></button>
+          <button className="btn primary" aria-label="Generate briefing" onClick={() => downloadBriefPdf(summary, ranked, plan)}><Download size={18} /> <span className="lbl">Generate briefing</span></button>
         </div>
       </header>
 
       <section className="status">
-        <div className="st-ic"><AlertTriangle /></div>
-        <div><small>REGIONAL GRID STATUS</small><h2>{summary.status}</h2></div>
+        <div className="st-ic"><AlertTriangle size={22} /></div>
+        <div className="st-t"><small>Regional grid status</small><h2>{summary.status}</h2></div>
         <p>{summary.note}</p>
         <div className="st-r"><Clock size={16} /> Updated {summary.updated}<span className="sep" />Model confidence <b>{summary.confidence}%</b></div>
       </section>
 
       <main>
-        <small className="eyebrow">OPERATIONS OVERVIEW</small>
-        <h1>Good afternoon, Regional Ops</h1>
+        <small className="eyebrow">Operations overview</small>
+        <h1>Good afternoon, <span className="accent">Regional Ops</span></h1>
         <p className="sub">Prioritized actions for {new Date().toLocaleString([], { weekday: "long", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
 
         <div className="kpis">
@@ -65,15 +65,17 @@ export default function App() {
           <div className="split">
             <div className="map-wrap">
               <div className="seg">{["Risk", "Exposure", "Coverage"].map(m =>
-                <button key={m} className={m === mode ? "on" : ""} onClick={() => setMode(m)}>{m}</button>)}</div>
-              <CountyMap counties={counties} selected={selected} onSelect={setSelected} mode={mode} />
-              <div className="map-pop"><div><b>{sel.name} County</b><small>Risk {sel.delta >= 0 ? "increased" : "fell"} {sel.delta > 0 ? "+" : ""}{sel.delta}% in 90 min</small></div><strong style={{ color: riskColor(sel.risk) }}>{sel.risk}</strong></div>
-              <div className="legend">Lower risk {["#b4d1c7", "#e2b865", "#dc8a4f", "#c9473f"].map(c => <i key={c} style={{ background: c }} />)} Critical</div>
+                <button key={m} aria-pressed={m === mode} onClick={() => setMode(m)}>{m}</button>)}</div>
+              <CountyMap counties={counties} selected={selected} highlightId={sel.id} onSelect={setSelected} mode={mode} />
+              <div className="map-pop"><div><b>{sel.name} County</b><small>Risk {sel.delta >= 0 ? "increased" : "fell"} {sel.delta > 0 ? "+" : ""}{sel.delta}% in 90 min</small></div><strong style={{ color: riskColor(sel.risk) === ramp[0] ? "var(--ink)" : riskColor(sel.risk) }}>{sel.risk}</strong></div>
+              <div className="legend">Lower {ramp.map(c => <i key={c} style={{ background: c }} />)} Critical</div>
             </div>
             <table>
-              <thead><tr><th>RANK / COUNTY</th><th>RISK</th><th>EXPOSURE</th><th>ACTION</th></tr></thead>
+              <thead><tr><th>Rank / county</th><th>Risk</th><th>Exposure</th><th>Action</th></tr></thead>
               <tbody>{ranked.map((c, i) => { const [label, cls] = tier(c.risk); return (
-                <tr key={c.id} className={c.id === sel.id ? "sel" : ""} onClick={() => setSelected(c)}>
+                <tr key={c.id} className={c.id === sel.id ? "sel" : ""} tabIndex={0} aria-selected={c.id === sel.id}
+                  onClick={() => setSelected(c)}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(c); } }}>
                   <td><span className="rank">{i + 1}</span><b>{c.name}</b><small>{c.crewHours} crew-hours</small></td>
                   <td><b className={cls}>{c.risk}</b><small>{c.delta > 0 ? "+" : ""}{c.delta}%</small></td>
                   <td><b>{fmt(c.exposure)}</b><small>{c.sites} sites</small></td>
@@ -84,7 +86,7 @@ export default function App() {
         </section>
 
         <section className="card">
-          <div className="card-h"><div><h3>Recommended dispatch <span className="badge"><Activity size={13} /> OPTIMIZED</span></h3>
+          <div className="card-h"><div><h3>Recommended dispatch <span className="badge"><Activity size={13} /> Optimized</span></h3>
             <p>Ordered by harm prevented per crew-hour</p></div><a className="link">View plan <ArrowRight size={16} /></a></div>
           {plan.map((a, i) => (
             <div className="dispatch" key={a.id}>
@@ -96,7 +98,7 @@ export default function App() {
               <button className={`btn ghost ${assigned.has(a.id) ? "done" : ""}`}
                 onClick={() => setAssigned(new Set(assigned).add(a.id))}>{assigned.has(a.id) ? "Assigned ✓" : "Assign"}</button>
             </div>))}
-          <div className="cap"><div><small>CREW CAPACITY AFTER PLAN</small><b>{crewsCommitted} crews committed · {crewsLeft} available</b></div>
+          <div className="cap"><div><small>Crew capacity after plan</small><b>{crewsCommitted} crews committed · {crewsLeft} available</b></div>
             <div className="bar"><i style={{ width: `${(crewsCommitted / summary.crewsAvailable) * 100}%` }} /></div></div>
         </section>
 
@@ -109,7 +111,7 @@ export default function App() {
 
         <section className="card offline">
           <div className="off-ic"><Radio size={40} /></div>
-          <div><small className="eyebrow">BUILT FOR DEGRADED COMMS</small><h3>Briefings that work offline</h3>
+          <div><small className="eyebrow">Built for degraded comms</small><h3>Briefings that work <span className="accent">offline</span></h3>
             <p>Export a one-page field brief or send an SMS-length action summary.</p></div>
           <div className="off-btns">
             <button className="btn ghost" onClick={() => downloadBriefPdf(summary, ranked, plan)}><Printer size={18} /> Print brief</button>
