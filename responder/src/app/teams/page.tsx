@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { Copy, MapPin, Plus, Share2, Undo2 } from "lucide-react";
+import { Copy, MapPin, MessageSquare, Plus, Share2, Undo2 } from "lucide-react";
 import { useState } from "react";
 import Stepper from "@/components/Stepper";
 import { orderOf, qtyOf, total } from "@/lib/decisions";
@@ -45,7 +45,7 @@ export default function Teams() {
           The <span className="accent text-[1.1em]">plan</span>
         </h1>
         <p className="mt-3 max-w-2xl text-[17px] leading-snug text-ink2">
-          Counties are ranked from weather and outage data. For each one the app recommends the nearest free crew and shows the drive time. You choose how many crews to add to the plan, then copy or share it. This app recommends only: your own dispatch system sends the crews. Crews and depots are sample data.
+          Counties are ranked from weather and outage data. For each one the app recommends the nearest free crew and shows the drive time. You choose how many crews to assign, then text them or copy the plan. This app recommends only: your own dispatch system sends the crews. Crews and depots are sample data.
         </p>
       </header>
 
@@ -66,8 +66,8 @@ export default function Teams() {
         <section aria-label="Priority counties">
           <div className="flex items-center gap-3">
             <h2 className="eyebrow flex-1">Priority counties · {list.length}</h2>
-            <button className="btn btn-sm" onClick={() => addToPlan(list.slice(0, 5))} disabled={busy || !list.length} title="Adds what is set on each of the top five rows to the plan">
-              <Plus /> Add top 5 to plan
+            <button className="btn btn-sm" onClick={() => addToPlan(list.slice(0, 5))} disabled={busy || !list.length} title="Assigns what is set on each of the top five rows">
+              <Plus /> Assign top 5
             </button>
           </div>
           {!list.length && <p className="py-6 text-[15px] muted">{latest ? "No county is rated watch or higher right now." : "Go live or load demo outages to see the ranking."}</p>}
@@ -92,7 +92,7 @@ export default function Teams() {
                     <div className="flex w-full items-center gap-3 sm:w-auto">
                       <Stepper bare label="Line crews" value={q.line} onChange={(n) => setQty(p.fips, { ...q, line: n })} max={tot?.line.available ?? 0} />
                       <button className="btn btn-ink !min-h-12 flex-1 sm:flex-none" onClick={() => addToPlan([p])} disabled={busy || total(q) === 0}>
-                        Add {total(q) || ""}
+                        Assign {total(q) || ""}
                       </button>
                     </div>
                   </div>
@@ -118,7 +118,7 @@ export default function Teams() {
               )}
             </div>
             {out.length === 0 ? (
-              <p className="py-3 text-[15px] muted">Nothing in the plan yet. Add crews from the list and they appear here as recommendations you can copy or share.</p>
+              <p className="py-3 text-[15px] muted">Nothing in the plan yet. Assign crews from the list and they appear here, ready to text.</p>
             ) : (
               <ul className="rows mt-1">
                 {out.map((u) => (
@@ -184,6 +184,9 @@ function FieldRow({ u, now }: { u: Unit; now: string }) {
         <span className="chip">{a ? (a.depart_by_min === 0 ? "leave now" : `leave by ${departBy(now, a.depart_by_min)}`) : "planned"}</span>
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
+        <button className="btn btn-sm btn-ink !min-h-9 !px-3 !text-[14px]" onClick={() => s.openComposer(u.id)}>
+          <MessageSquare /> Text crew
+        </button>
         <button className="btn btn-sm" onClick={() => s.setUnitStatus(u.id, "available")}>
           <Undo2 /> Remove from plan
         </button>

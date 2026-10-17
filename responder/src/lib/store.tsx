@@ -73,6 +73,8 @@ export const DEFAULT_QTY: Qty = { line: 1, shelter: 0, outreach: 0 };
 export interface PendingUndo {
   count: number;
   fips: string[] | null;
+  /** the crews just assigned, so the bar can offer to text them */
+  units: string[];
   until: number;
 }
 
@@ -90,6 +92,10 @@ export interface Store {
   selected: string | null;
   setSelected: (f: string | null) => void;
   pendingUndo: PendingUndo | null;
+  /** the text-a-crew sheet: open when set, `unitId` is the crew shown first */
+  composer: { unitId: string | null } | null;
+  openComposer: (unitId?: string | null) => void;
+  closeComposer: () => void;
   toast: string | null;
   say: (msg: string) => void;
   series: { i: number; out: number; flagged: number }[];
@@ -132,6 +138,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [models, setModels] = useState<Record<string, { tiers: Tiers }> | null>(null);
   const [pendingUndo, setPendingUndo] = useState<PendingUndo | null>(null);
+  const [composer, setComposer] = useState<{ unitId: string | null } | null>(null);
+  const openComposer = useCallback((unitId: string | null = null) => setComposer({ unitId }), []);
+  const closeComposer = useCallback(() => setComposer(null), []);
   const [toast, setToast] = useState<string | null>(null);
   const [qty, setQtyState] = useState<Record<string, Qty>>({});
   const [series, setSeries] = useState<{ i: number; out: number; flagged: number }[]>([]);
@@ -346,7 +355,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await Promise.all([refreshOps(), refreshPlan()]);
       if (r.dispatched > 0) {
         window.clearTimeout(undoTimer.current);
-        setPendingUndo({ count: r.dispatched, fips: orders.map((o) => o.fips), until: Date.now() + UNDO_MS });
+        setPendingUndo({ count: r.dispatched, fips: orders.map((o) => o.fips), units: r.work_orders.map((w) => w.unit_id), until: Date.now() + UNDO_MS });
         undoTimer.current = window.setTimeout(() => setPendingUndo(null), UNDO_MS);
         if (r.short.length) say(`Only ${r.dispatched} units were free for the plan: ${r.short.map((x) => `${x.county} got ${x.assigned} of ${x.requested} ${x.type}`).join(", ")}`);
       } else {
@@ -404,10 +413,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<Store>(
     () => ({
-      latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, setSelected, pendingUndo, toast, say, series,
+      latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, setSelected, pendingUndo, composer, openComposer, closeComposer, toast, say, series,
       qty, setQty, start, startDemo, pause, resume, seek, setSpeed, dispatch, undo, setUnitCount, setStock, setTarget, setUnitStatus, sitrep, refreshPlan,
     }),
-    [latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, pendingUndo, toast, say, series,
+    [latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, pendingUndo, composer, openComposer, closeComposer, toast, say, series,
       qty, setQty, start, startDemo, pause, resume, seek, setSpeed, dispatch, undo, setUnitCount, setStock, setTarget, setUnitStatus, sitrep, refreshPlan],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

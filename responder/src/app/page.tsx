@@ -177,14 +177,14 @@ export default function Outages() {
                     </p>
                   </button>
                   <button className="btn btn-sm" onClick={() => addToPlan([p.fips])} disabled={busy || total(q) === 0}>
-                    Add {total(q)}
+                    Assign {total(q)}
                   </button>
                 </li>
               );
             })}
           </ul>
           {nextUp.length > 6 && <p className="mt-1 text-[13px] text-ink3">and {nextUp.length - 6} more on the Teams tab</p>}
-          <p className="mt-2 text-[12.5px] text-ink3">Each row adds what you set for that county to the plan, one line crew unless you open it and choose differently.</p>
+          <p className="mt-2 text-[12.5px] text-ink3">Each row assigns what you set for that county, one line crew unless you open it and choose differently. Then you can text the crew.</p>
         </section>
       )}
 

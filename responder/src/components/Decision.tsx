@@ -84,11 +84,11 @@ export default function Decision({
       <div className="mt-4 flex items-center gap-3">
         <Stepper bare label="Line crews" value={qty.line} max={available.line} onChange={(v) => onQty({ ...qty, line: v })} />
         <button className="btn btn-ink min-w-0 flex-1" onClick={onSend} disabled={busy || total(qty) === 0}>
-          {total(qty) ? `Add ${total(qty)} to plan` : "Choose how many"}
+          {total(qty) ? `Assign ${total(qty)}` : "Choose how many"}
         </button>
       </div>
       <p className="mono mt-2 text-[11.5px] text-ink3">
-        {available.line} line crews free{total(qty) ? ` · adds ${qtyText(qty)}` : ""}
+        {available.line} line crews free{total(qty) ? ` · assigns ${qtyText(qty)}` : ""}
       </p>
 
       <dl className="mt-5 grid grid-cols-3 border-y border-line py-3">

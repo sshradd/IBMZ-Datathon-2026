@@ -4,7 +4,8 @@ import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CloudOff, Ellipsis, Map as MapIcon, Package, Pause, Play, Radio, RotateCcw, Undo2, Users, Zap } from "lucide-react";
+import { CloudOff, Ellipsis, Map as MapIcon, MessageSquare, Package, Pause, Play, Radio, RotateCcw, Undo2, Users, Zap } from "lucide-react";
+import TextCrew from "@/components/TextCrew";
 import { UNDO_MS, useStore } from "@/lib/store";
 import { clock, dayClock } from "@/lib/format";
 
@@ -68,6 +69,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
       <UndoBar />
       <Toast />
+      <TextCrew />
     </div>
   );
 }
@@ -146,7 +148,7 @@ function Playback() {
 }
 
 function UndoBar() {
-  const { pendingUndo, undo } = useStore();
+  const { pendingUndo, undo, openComposer } = useStore();
   const [left, setLeft] = useState(0);
   useEffect(() => {
     if (!pendingUndo) return;
@@ -160,9 +162,12 @@ function UndoBar() {
     <div className="card fixed inset-x-3 top-[68px] z-50 mx-auto max-w-md overflow-hidden md:bottom-6 md:left-auto md:right-6 md:top-auto md:mx-0" role="status">
       <div className="flex items-center gap-3 p-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[17px] font-semibold tracking-tight">Added {pendingUndo.count} {pendingUndo.count === 1 ? "unit" : "units"} to the plan</p>
-          <p className="text-[13px] muted">Copy or share the plan from the Teams tab. This app does not dispatch.</p>
+          <p className="text-[17px] font-semibold tracking-tight">Assigned {pendingUndo.count} {pendingUndo.count === 1 ? "crew" : "crews"}</p>
+          <p className="text-[13px] muted">Text them from here. This app only recommends.</p>
         </div>
+        <button className="btn btn-ink !min-h-11 !px-4 !text-[15px]" onClick={() => openComposer(pendingUndo.units[0] ?? null)}>
+          <MessageSquare /> Text
+        </button>
         <button className="btn" onClick={undo}>
           <Undo2 /> Undo
         </button>
