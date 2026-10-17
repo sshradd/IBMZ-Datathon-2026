@@ -356,6 +356,113 @@
     height: 20px;
   }
 
+  /* map markers (HTML, placed by MapLibre) */
+  .map-eta {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+  }
+  .map-eta b {
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .map-depot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    pointer-events: none;
+  }
+  .map-depot i {
+    width: 14px;
+    height: 14px;
+    transform: rotate(45deg);
+    background: var(--card);
+    border: 2.5px solid var(--ink);
+    border-radius: 3px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  }
+  .map-depot span,
+  .map-stage span {
+    padding: 1px 6px;
+    border-radius: 6px;
+    background: var(--card);
+    border: 1px solid var(--line-2);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .zoomed-out .map-depot span {
+    display: none;
+  }
+  .map-beacon {
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+  .map-beacon i {
+    position: absolute;
+    left: -6px;
+    top: -6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--ink);
+    animation: ping 2s ease-out infinite;
+  }
+  @keyframes ping {
+    0% {
+      transform: scale(1);
+      opacity: 0.9;
+    }
+    100% {
+      transform: scale(4);
+      opacity: 0;
+    }
+  }
+  .map-stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    pointer-events: none;
+  }
+  .map-stage i {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 3px solid var(--green);
+    background: var(--card);
+  }
+  .map-me i {
+    display: block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #2563eb;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.25);
+  }
+  .maplibregl-ctrl-attrib {
+    font-size: 10px;
+    background: color-mix(in srgb, var(--card) 80%, transparent) !important;
+    color: var(--ink-3) !important;
+  }
+  .maplibregl-ctrl-attrib a {
+    color: var(--ink-2) !important;
+  }
+  .maplibregl-canvas {
+    outline: none;
+  }
+
   /* bottom sheet on phones */
   .sheet {
     background: var(--card);

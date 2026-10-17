@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import CountyList from "@/components/CountyList";
 import CountyMap, { type Layer, type MapLink } from "@/components/CountyMap";
 import Decision from "@/components/Decision";
+import Statewide from "@/components/Statewide";
 import Weather from "@/components/Weather";
 import { orderOf, qtyOf, total } from "@/lib/decisions";
 import { compact, departBy, mins, pct } from "@/lib/format";
@@ -25,7 +26,7 @@ const SNAPS = ["258px", "58%", "calc(100% - 12px)"];
 
 export default function Outages() {
   const s = useStore();
-  const { latest, plan, counties, ops, tiers, selected, setSelected, qty, setQty } = s;
+  const { latest, plan, counties, ops, tiers, selected, setSelected, qty, setQty, series } = s;
   const [layer, setLayer] = useState<Layer>("p24");
   const [list, setList] = useState(false);
   const [skipped, setSkipped] = useState<string[]>([]);
@@ -43,7 +44,8 @@ export default function Outages() {
   const autoStarted = useRef(false);
   const hasDemo = s.scenarios.some((x) => x.key !== "live");
   useEffect(() => {
-    if (autoStarted.current || latest || s.state?.scenario || !hasDemo || location.hash === "#start") return;
+    // wait until the server has said whether a session is already running, so a second page never restarts it
+    if (autoStarted.current || latest || !s.state || s.state.scenario || !hasDemo || location.hash === "#start") return;
     autoStarted.current = true;
     s.startDemo();
   }, [latest, s, hasDemo]);
@@ -155,6 +157,10 @@ export default function Outages() {
         </div>
       ))}
 
+      <div className="border-t border-line pt-5">
+        <Statewide latest={latest} counties={counties} series={series} selected={selected} onSelect={setSelected} />
+      </div>
+
       {nextUp.length > 0 && (
         <section aria-label="Next up">
           <h3 className="eyebrow">Next up · {nextUp.length}</h3>
@@ -237,12 +243,14 @@ export default function Outages() {
           </div>
         </div>
 
-        <div className="absolute bottom-3 left-3 hidden items-center gap-3 lg:flex">
-          <Legend layer={layer} />
+        <div className="absolute bottom-3 left-3 flex items-center gap-2">
+          <button className="btn btn-sm shadow-sm" onClick={() => setList((v) => !v)} aria-pressed={list}>
+            {list ? <MapIcon /> : <List />} {list ? "Map" : "List"}
+          </button>
+          <div className="hidden lg:block">
+            <Legend layer={layer} />
+          </div>
         </div>
-        <button className="btn btn-sm absolute right-3 top-[168px] hidden lg:inline-flex" onClick={() => setList((v) => !v)} aria-pressed={list}>
-          {list ? <MapIcon /> : <List />} {list ? "Map" : "List"}
-        </button>
       </section>
 
       {/* desktop panel */}

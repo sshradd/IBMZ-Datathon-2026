@@ -71,7 +71,10 @@ Exact versions: `web/package-lock.json`.
 | Next.js | MIT | https://github.com/vercel/next.js |
 | React, React DOM | MIT | https://github.com/facebook/react |
 | Tailwind CSS, @tailwindcss/postcss | MIT | https://github.com/tailwindlabs/tailwindcss |
-| d3-geo (map projection) | ISC | https://github.com/d3/d3-geo |
+| d3-geo (map projection, used by the offline fallback map) | ISC | https://github.com/d3/d3-geo |
+| MapLibre GL JS 4 (the interactive map) | BSD-3-Clause | https://github.com/maplibre/maplibre-gl-js |
+| Esri Canvas Light Gray and Dark Gray basemap tiles (roads, water, places; loaded live, no key, credited on the map and cached by the service worker for offline use) | Esri terms of use | https://www.arcgis.com/home/item.html?id=8b3d38c0819547faa83f7b7aca80bd76 |
+| OpenStreetMap contributors (data inside the Esri basemap) | ODbL | https://www.openstreetmap.org/copyright |
 | topojson-client | ISC | https://github.com/topojson/topojson-client |
 | us-atlas (county boundaries, derived from US Census data) | ISC | https://github.com/topojson/us-atlas |
 | Lucide icons | ISC | https://github.com/lucide-icons/lucide |

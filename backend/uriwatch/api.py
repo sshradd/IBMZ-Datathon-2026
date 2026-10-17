@@ -84,10 +84,16 @@ class AppState:
         self.speed = 12.0
         self.task: asyncio.Task | None = None
         self.last_msg: str | None = None  # sent to dashboards that connect mid-run
+        self.last_hour: str | None = None  # the latest forecast hour, kept even when a status message follows it
         self.ops = opsmod.OpsState()
 
-    def publish(self, msg: str, remember: bool = True) -> None:
+    def publish(self, msg: str, remember: bool = True, hour: bool = False, reset: bool = False) -> None:
+        """`hour` marks a forecast hour (kept for pages that connect while paused); `reset` starts a new session."""
         self.last_msg = msg if remember else None
+        if reset:
+            self.last_hour = None
+        elif hour:
+            self.last_hour = msg
         self.hub.publish(msg)
 
     @property
@@ -117,7 +123,7 @@ class AppState:
         while isinstance(self.session, LiveSession):
             try:
                 res = await loop.run_in_executor(None, self.session.step)
-                self.publish(json.dumps(res, separators=(",", ":")))
+                self.publish(json.dumps(res, separators=(",", ":")), hour=True)
             except Exception as e:  # a failed poll must not kill the loop
                 self.hub.publish(json.dumps({"type": "error", "message": str(e)[:200]}))
             await asyncio.sleep(live_config.POLL_SECONDS)
@@ -134,7 +140,7 @@ class AppState:
                 res = self.session.step()
                 if res is None:
                     break
-                self.publish(json.dumps(res, separators=(",", ":")))
+                self.publish(json.dumps(res, separators=(",", ":")), hour=True)
             await asyncio.sleep(tick)
         self.publish(json.dumps({"type": "end", **{**self.status(), "running": False}}), remember=False)
 
@@ -247,7 +253,7 @@ async def replay_start(cfg: StartConfig, request: Request) -> dict:
         raise HTTPException(404, "unknown scenario or model")
     s.speed = cfg.speed
     s.task = asyncio.create_task(s.run())
-    s.publish(json.dumps({"type": "reset", **s.status()}), remember=False)
+    s.publish(json.dumps({"type": "reset", **s.status()}), remember=False, reset=True)
     return s.status()
 
 
@@ -282,8 +288,11 @@ async def replay_seek(cfg: SeekConfig, request: Request) -> dict:
         raise HTTPException(409, "live mode cannot seek")
     was = s.running
     s.stop()
-    s.session.seek(cfg.i)
-    s.publish(json.dumps({"type": "reset", **s.status()}), remember=False)
+    s.session.seek(max(cfg.i - 1, 0))
+    s.publish(json.dumps({"type": "reset", **s.status()}), remember=False, reset=True)
+    res = s.session.step()  # show the hour you landed on, also while paused
+    if res is not None:
+        s.publish(json.dumps(res, separators=(",", ":")), hour=True)
     if was and not s.session.done:
         s.task = asyncio.create_task(s.run())
     return s.status()
@@ -334,13 +343,16 @@ async def events(request: Request) -> StreamingResponse:
     q: asyncio.Queue = asyncio.Queue(maxsize=2000)
     hub.subscribers.add(q)
 
-    first = _s(request).last_msg
+    first = _s(request).last_hour
+    status = _s(request).last_msg if _s(request).last_msg is not first else None
 
     async def stream():
         try:
             yield "retry: 2000\n\n"
-            if first:  # a dashboard that connects mid-run starts from the latest hour
+            if first:  # a dashboard that connects mid-run starts from the latest hour, even if the replay is paused
                 yield f"data: {first}\n\n"
+            if status:
+                yield f"data: {status}\n\n"
             while not await request.is_disconnected():
                 try:
                     msg = await asyncio.wait_for(q.get(), timeout=10)
