@@ -44,8 +44,20 @@ export default function Statewide({
     .slice(0, 5);
   const top = Math.max(1, ...rows.map((r) => r.v));
 
+  const sc = latest.describe.scorecard;
   return (
     <section aria-label="Statewide">
+      {!live && sc.onsets > 0 && sc.warned_pct != null && (
+        <div className="mb-5">
+          <h3 className="eyebrow">Warned before the outage</h3>
+          <p className="mt-1 flex items-baseline gap-2">
+            <span className="num text-[34px]">{Math.round(sc.warned_pct)}%</span>
+            <span className="text-[15px] muted">
+              of {sc.onsets} county outages{sc.median_lead_h != null ? `, median ${sc.median_lead_h} h ahead` : ""}
+            </span>
+          </p>
+        </div>
+      )}
       {!live && pts.length > 1 && (
         <div>
           <div className="flex items-baseline justify-between gap-3">

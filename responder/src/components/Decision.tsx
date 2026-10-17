@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, X } from "lucide-react";
+import { MapPin, Volume2, X } from "lucide-react";
 import Stepper from "@/components/Stepper";
 import { qtyText, total } from "@/lib/decisions";
 import { compact, departBy, mins, pct } from "@/lib/format";
@@ -23,6 +23,7 @@ export default function Decision({
   onSend,
   onSkip,
   onClose,
+  onSpeak,
 }: {
   county: County;
   index: number;
@@ -35,6 +36,7 @@ export default function Decision({
   onSend: () => void;
   onSkip?: () => void;
   onClose?: () => void;
+  onSpeak?: () => void;
 }) {
   const row = latest.counties[index];
   const tier = TIER_NAMES[row[1]];
@@ -60,6 +62,11 @@ export default function Decision({
           </div>
           <h2 className="display mt-2 text-[34px]">{county.name} County</h2>
         </div>
+        {onSpeak && (
+          <button className="btn btn-icon" onClick={onSpeak} aria-label="Read the top three aloud" title="Read the top three aloud">
+            <Volume2 />
+          </button>
+        )}
         {onClose && (
           <button className="btn btn-icon" onClick={onClose} aria-label="Close county details">
             <X />

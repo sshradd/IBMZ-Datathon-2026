@@ -70,6 +70,14 @@ export interface Qty {
 }
 export const DEFAULT_QTY: Qty = { line: 1, shelter: 0, outreach: 0 };
 
+/** One past hour, kept small, so the map can be scrubbed back through what just happened. */
+export interface HistoryFrame {
+  i: number;
+  t: string;
+  counties: HourEvent["counties"];
+  out_total: number;
+}
+
 export interface PendingUndo {
   count: number;
   fips: string[] | null;
@@ -93,12 +101,17 @@ export interface Store {
   setSelected: (f: string | null) => void;
   pendingUndo: PendingUndo | null;
   /** the text-a-crew sheet: open when set, `unitId` is the crew shown first */
+  /** the assign popup: the orders being reviewed, or null when closed */
+  assign: Order[] | null;
+  openAssign: (orders: Order[]) => void;
+  closeAssign: () => void;
   composer: { unitId: string | null } | null;
   openComposer: (unitId?: string | null) => void;
   closeComposer: () => void;
   toast: string | null;
   say: (msg: string) => void;
   series: { i: number; out: number; flagged: number }[];
+  history: HistoryFrame[];
   start: (scenario: string, model?: string | null) => Promise<void>;
   /** the demo outages, opened at the hour the first warnings go up */
   startDemo: () => Promise<void>;
@@ -138,12 +151,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [models, setModels] = useState<Record<string, { tiers: Tiers }> | null>(null);
   const [pendingUndo, setPendingUndo] = useState<PendingUndo | null>(null);
+  const [assign, setAssign] = useState<Order[] | null>(null);
+  const openAssign = useCallback((orders: Order[]) => setAssign(orders.length ? orders : null), []);
+  const closeAssign = useCallback(() => setAssign(null), []);
   const [composer, setComposer] = useState<{ unitId: string | null } | null>(null);
   const openComposer = useCallback((unitId: string | null = null) => setComposer({ unitId }), []);
   const closeComposer = useCallback(() => setComposer(null), []);
   const [toast, setToast] = useState<string | null>(null);
   const [qty, setQtyState] = useState<Record<string, Qty>>({});
   const [series, setSeries] = useState<{ i: number; out: number; flagged: number }[]>([]);
+  const [history, setHistory] = useState<HistoryFrame[]>([]);
   const pending = useRef<HourEvent[]>([]);
   const lastPlanAt = useRef(0);
   const planTimer = useRef<number | undefined>(undefined);
@@ -266,6 +283,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         for (const e of batch) next.push({ i: e.i, out: e.out_total, flagged: e.tier_counts[1] + e.tier_counts[2] + e.tier_counts[3] });
         return next;
       });
+      setHistory((prev) => {
+        const next = prev.length && prev[prev.length - 1].i >= batch[0].i ? [] : prev.slice(-71);
+        for (const e of batch) next.push({ i: e.i, t: e.t, counties: e.counties, out_total: e.out_total });
+        return next.slice(-72);
+      });
       try {
         localStorage.setItem(LAST_KEY, JSON.stringify(last));
       } catch {
@@ -284,6 +306,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         pending.current = [];
         setLatest(null);
         setSeries([]);
+        setHistory([]);
         setPlan(null);
         setState(msg as ReplayState);
       } else if (msg.type === "end") {
@@ -413,10 +436,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<Store>(
     () => ({
-      latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, setSelected, pendingUndo, composer, openComposer, closeComposer, toast, say, series,
+      latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, setSelected, pendingUndo, assign, openAssign, closeAssign, composer, openComposer, closeComposer, toast, say, series, history,
       qty, setQty, start, startDemo, pause, resume, seek, setSpeed, dispatch, undo, setUnitCount, setStock, setTarget, setUnitStatus, sitrep, refreshPlan,
     }),
-    [latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, pendingUndo, composer, openComposer, closeComposer, toast, say, series,
+    [latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, pendingUndo, assign, openAssign, closeAssign, composer, openComposer, closeComposer, toast, say, series, history,
       qty, setQty, start, startDemo, pause, resume, seek, setSpeed, dispatch, undo, setUnitCount, setStock, setTarget, setUnitStatus, sitrep, refreshPlan],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

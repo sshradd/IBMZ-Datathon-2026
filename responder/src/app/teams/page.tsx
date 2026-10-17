@@ -4,7 +4,8 @@ import clsx from "clsx";
 import { Copy, MapPin, MessageSquare, Plus, Share2, Undo2 } from "lucide-react";
 import { useState } from "react";
 import Stepper from "@/components/Stepper";
-import { orderOf, qtyOf, total } from "@/lib/decisions";
+import { type Objective, orderOf, qtyOf, rankBy, total } from "@/lib/decisions";
+import { useSetting } from "@/lib/settings";
 import { clock, compact, dayClock, departBy, mins, pct } from "@/lib/format";
 import { orderFor } from "@/lib/orders";
 import { copyText, shareText } from "@/lib/share";
@@ -16,17 +17,11 @@ const TYPE_LABEL = { line: "Line crews", shelter: "Shelter teams", outreach: "Ou
 export default function Teams() {
   const s = useStore();
   const { plan, ops, latest, qty, setQty } = s;
+  const [objective] = useSetting<Objective>("objective", "impact");
   const [busy, setBusy] = useState(false);
   const now = latest?.as_of ?? latest?.t ?? "";
 
-  const addToPlan = async (ps: Priority[]) => {
-    setBusy(true);
-    try {
-      await s.dispatch(ps.map((p) => orderOf(p, qty)).filter((o) => o.line + o.shelter + o.outreach > 0));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const addToPlan = (ps: Priority[]) => s.openAssign(ps.map((p) => orderOf(p, qty)).filter((o) => o.line + o.shelter + o.outreach > 0));
 
   if (!ops) return <div className="p-6 text-[15px] muted">Loading crews…</div>;
   const out = ops.units.filter((u) => u.status === "en_route" || u.status === "on_site");
@@ -35,7 +30,7 @@ export default function Teams() {
     `RECOMMENDED PLAN · Texas power outage response${latest ? ` · ${dayClock(latest.as_of ?? latest.t)} CST` : ""}\n\n` +
     out.map((u) => orderFor(u, s.counties, ops.depots, now)?.text ?? "").filter(Boolean).join("\n\n") +
     "\n\nRecommendations only. Nothing was dispatched by this app.";
-  const list = plan?.priorities.slice(0, 25) ?? [];
+  const list = rankBy(plan?.priorities ?? [], objective).slice(0, 25);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-10">
