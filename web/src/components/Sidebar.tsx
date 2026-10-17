@@ -1,9 +1,10 @@
 import clsx from "clsx";
-import { BarChart3, Cpu, ListChecks, Microscope, Moon, Radar, ShieldCheck, Sun, Zap } from "lucide-react";
+import { Activity, BarChart3, Cpu, ListChecks, Microscope, Moon, Radar, ShieldCheck, Sun, Zap } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Scenario, SystemInfo } from "../api";
 
-export type View = "brief" | "predict" | "prescribe" | "diagnose" | "describe" | "evidence" | "bench";
+export type View = "brief" | "predict" | "prescribe" | "diagnose" | "describe" | "live" | "evidence" | "bench";
+export type ModelChoice = "" | "honest" | "final" | "live_honest" | "live_final";
 
 const LENSES: { id: View; title: string; sub: string; icon: ReactNode }[] = [
   { id: "brief", title: "Situation brief", sub: "Predict and prescribe at a glance", icon: <Zap /> },
@@ -32,8 +33,8 @@ export default function Sidebar({
   scenarios: Scenario[];
   scenario: string;
   onScenario: (s: string) => void;
-  model: "" | "honest" | "final";
-  onModel: (m: "" | "honest" | "final") => void;
+  model: ModelChoice;
+  onModel: (m: ModelChoice) => void;
   system: SystemInfo | null;
   theme: "dark" | "light";
   onTheme: () => void;
@@ -73,16 +74,27 @@ export default function Sidebar({
             </option>
           ))}
         </select>
-        <select value={model} onChange={(e) => onModel(e.target.value as typeof model)} aria-label="Model">
-          <option value="">Honest model (never saw it)</option>
-          <option value="final">Final model (trained on it)</option>
+        <select value={model} onChange={(e) => onModel(e.target.value as ModelChoice)} aria-label="Model">
+          {scenario === "live" ? (
+            <>
+              <option value="">Live model (trained on all storms)</option>
+              <option value="live_honest">Live model (backtest version)</option>
+            </>
+          ) : (
+            <>
+              <option value="">Full model, honest (never saw it)</option>
+              <option value="final">Full model, trained on it</option>
+              <option value="live_honest">Live-feature model, honest</option>
+            </>
+          )}
         </select>
       </div>
 
       <nav className="nav" aria-label="Analytics lenses">
         <p className="nav-label mb-1.5">Analytics</p>
         {LENSES.map((l) => item(l.id, l.title, l.sub, l.icon, l.id === "prescribe" ? moves : undefined))}
-        <p className="nav-label mb-1.5 mt-4">Proof</p>
+        <p className="nav-label mb-1.5 mt-4">Data and proof</p>
+        {item("live", "Live data", "Real-time feeds and API", <Activity />)}
         {item("evidence", "Evidence", "Out-of-sample backtests", <ShieldCheck />)}
         {item("bench", "On IBM Z", "Throughput and latency", <Cpu />)}
       </nav>

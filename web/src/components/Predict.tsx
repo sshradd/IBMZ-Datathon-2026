@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Area, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ArrowDown, ArrowUp } from "lucide-react";
-import { compact, fmtDay, fmtTime, n0, pct, timeAt } from "../api";
+import { chartDomain, compact, fmtDay, fmtTime, n0, pct, timeAt } from "../api";
 import type { Ctx } from "../App";
 import TexasMap, { TIER_COLOR, type MapMode } from "./TexasMap";
 import { Empty, Kpi, Legend, Lens, MiniBars, Panel, TierChip } from "./ui";
@@ -28,6 +28,14 @@ export default function Predict({ replay, tiers, models, selected, select }: Ctx
         <Empty>Start the storm replay to see live forecasts.</Empty>
       ) : (
         <>
+          {latest.live && (
+            <div className="callout">
+              <span>
+                <b>Live mode forecasts from weather and grid data only.</b> With no outage feed, the 6 and 12 hour forecasts are weak (about 0.5 to 0.7 AUC on storms it never saw)
+                and the 24 hour forecast is the one to lean on (0.70 to 0.81). Details on the Evidence page.
+              </span>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             <Kpi label="Expected onsets · 6 h" value={latest.predict.expected_onsets[0].toFixed(1)} sub="counties" />
             <Kpi label="Expected onsets · 12 h" value={latest.predict.expected_onsets[1].toFixed(1)} sub="counties" />
@@ -142,7 +150,7 @@ export default function Predict({ replay, tiers, models, selected, select }: Ctx
                   <XAxis
                     dataKey="i"
                     type="number"
-                    domain={[0, Math.max(replay.state?.n ?? 1, 2) - 1]}
+                    domain={chartDomain(replay.state?.n)}
                     tickFormatter={(i: number) => fmtDay(timeAt(history, i))}
                     tick={{ fill: "var(--mut)", fontSize: 10 }}
                     tickCount={7}
@@ -177,7 +185,7 @@ export default function Predict({ replay, tiers, models, selected, select }: Ctx
                   <XAxis
                     dataKey="i"
                     type="number"
-                    domain={[0, Math.max(replay.state?.n ?? 1, 2) - 1]}
+                    domain={chartDomain(replay.state?.n)}
                     tickFormatter={(i: number) => fmtDay(timeAt(history, i))}
                     tick={{ fill: "var(--mut)", fontSize: 10 }}
                     tickCount={7}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getJSON, useReplay, usePoll, type ModelInfo, type SystemInfo } from "./api";
-import Sidebar, { type View } from "./components/Sidebar";
+import Sidebar, { type ModelChoice, type View } from "./components/Sidebar";
+import LiveData from "./components/LiveData";
 import Transport from "./components/Transport";
 import type { MoveState } from "./components/ui";
 import Brief from "./components/Brief";
@@ -27,7 +28,7 @@ export default function App() {
   const [view, setView] = useState<View>("brief");
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [scenario, setScenario] = useState("uri");
-  const [model, setModel] = useState<"" | "honest" | "final">("");
+  const [model, setModel] = useState<ModelChoice>("");
   const [decisions, setDecisions] = useState<Record<string, MoveState>>({});
   const [selected, setSelected] = useState<string | null>(null);
   const [models, setModels] = useState<Record<string, ModelInfo> | null>(null);
@@ -56,9 +57,9 @@ export default function App() {
 
   const decide = (id: string, s: MoveState) => setDecisions((d) => ({ ...d, [id]: s }));
   const tiers = useMemo(() => {
-    const t = models?.honest?.tiers;
+    const t = models?.[replay.state?.model ?? "honest"]?.tiers ?? models?.honest?.tiers;
     return t ? { watch: t.watch, prepare: t.prepare, act: t.act } : null;
-  }, [models]);
+  }, [models, replay.state?.model]);
 
   const ctx = { replay, tiers, models, decisions, decide, selected, select: setSelected, go: setView, scenario, model };
   const pending = (replay.latest?.prescribe.moves ?? []).filter((m) => !decisions[m.id]).length;
@@ -86,6 +87,7 @@ export default function App() {
           {view === "prescribe" && <Prescribe {...ctx} />}
           {view === "diagnose" && <Diagnose {...ctx} />}
           {view === "describe" && <Describe {...ctx} />}
+          {view === "live" && <LiveData {...ctx} />}
           {view === "evidence" && <Evidence models={models} />}
           {view === "bench" && <Benchmark system={system} />}
         </div>
@@ -104,5 +106,5 @@ export type Ctx = {
   select: (fips: string | null) => void;
   go: (v: View) => void;
   scenario: string;
-  model: "" | "honest" | "final";
+  model: ModelChoice;
 };

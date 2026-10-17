@@ -4,6 +4,7 @@ import { Empty, Lens, Panel } from "./ui";
 
 export default function Evidence({ models }: { models: Record<string, ModelInfo> | null }) {
   const m = models?.honest;
+  const live = models?.live_honest;
   if (!m) return <Empty>Loading the evidence…</Empty>;
   const x = m.metrics;
   const ts = x.tier_stats;
@@ -20,7 +21,70 @@ export default function Evidence({ models }: { models: Record<string, ModelInfo>
         </p>
       </div>
 
-      <Panel title="Out-of-sample results by storm" note="honest model">
+      <StormPanel title="Out-of-sample results by storm" note="full model" m={m} />
+
+      {live && (
+        <>
+          <div>
+            <h3 className="text-[19px]">The live model, same test</h3>
+            <p className="mt-2 max-w-3xl text-[13.5px] text-mut">
+              Live mode has no outage feed, so it runs a second model trained only on what exists in real time: weather, ERCOT grid telemetry and county profile.
+              Same training years, same storms held out. It catches fewer outages than the full model, and its alerts are more precise and arrive earlier.
+            </p>
+          </div>
+          <StormPanel title="Live-feature model, out of sample" note="weather and grid only" m={live} />
+        </>
+      )}
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        {ts && (
+          <Panel title="How often does an alert come true?" note="track record behind every recommendation">
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Alert tier</th>
+                  <th className="num">Went severe within 24 h</th>
+                  <th className="num">Lift vs. typical</th>
+                  <th className="num">Outages caught</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(["watch", "prepare", "act"] as const).map((t) => (
+                  <tr key={t}>
+                    <td>{t}</td>
+                    <td className="num text-fg">{pct(ts[t].precision, 1)}</td>
+                    <td className="num">{ts[t].lift}x</td>
+                    <td className="num">{pct(ts[t].recall, 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-3 text-[11.5px] leading-snug text-dim">
+              A typical county-hour in these storms had a {pct(ts.base_rate, 1)} chance of going severe within 24 hours. Alerts are about six times better than
+              that, but most alerts still do not end in a severe outage. That is why the recommendations are ranked and labeled with their hit rate.
+            </p>
+          </Panel>
+        )}
+
+        <Panel title="Honest limits">
+          <ul className="list-disc space-y-2 pl-4 text-[13px] text-mut">
+            <li>Alerts are broad. A large share of county-hours are on watch during a statewide event, and many alerts do not end in a severe outage.</li>
+            <li>The heat dome is the weak case. Heat-driven outages look different from winter storms and the model catches fewer than half of them.</li>
+            <li>It under-sizes statewide events like Uri. It ranks which counties go first better than it counts the total.</li>
+            <li>It does not forecast weather. A real system would add NWS forecasts and radar. Weather comes from 12 stations.</li>
+            <li>Seniors are Census county counts. We have no access to medical-need registries.</li>
+            <li>Resource counts in the planner are what-if levers, not any utility's actual fleet. Moves are rules over the forecast and are not validated by emergency managers.</li>
+          </ul>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function StormPanel({ title, note, m }: { title: string; note: string; m: ModelInfo }) {
+  const x = m.metrics;
+  return (
+      <Panel title={title} note={note}>
         <div className="overflow-x-auto scroll-thin">
           <table className="tbl">
             <thead>
@@ -65,48 +129,5 @@ export default function Evidence({ models }: { models: Record<string, ModelInfo>
           set on training data only, never tuned on these storms.
         </p>
       </Panel>
-
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        {ts && (
-          <Panel title="How often does an alert come true?" note="track record behind every recommendation">
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>Alert tier</th>
-                  <th className="num">Went severe within 24 h</th>
-                  <th className="num">Lift vs. typical</th>
-                  <th className="num">Outages caught</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(["watch", "prepare", "act"] as const).map((t) => (
-                  <tr key={t}>
-                    <td>{t}</td>
-                    <td className="num text-fg">{pct(ts[t].precision, 1)}</td>
-                    <td className="num">{ts[t].lift}x</td>
-                    <td className="num">{pct(ts[t].recall, 0)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="mt-3 text-[11.5px] leading-snug text-dim">
-              A typical county-hour in these storms had a {pct(ts.base_rate, 1)} chance of going severe within 24 hours. Alerts are about six times better than
-              that, but most alerts still do not end in a severe outage. That is why the recommendations are ranked and labeled with their hit rate.
-            </p>
-          </Panel>
-        )}
-
-        <Panel title="Honest limits">
-          <ul className="list-disc space-y-2 pl-4 text-[13px] text-mut">
-            <li>Alerts are broad. A large share of county-hours are on watch during a statewide event, and many alerts do not end in a severe outage.</li>
-            <li>The heat dome is the weak case. Heat-driven outages look different from winter storms and the model catches fewer than half of them.</li>
-            <li>It under-sizes statewide events like Uri. It ranks which counties go first better than it counts the total.</li>
-            <li>It does not forecast weather. A real system would add NWS forecasts and radar. Weather comes from 12 stations.</li>
-            <li>Seniors are Census county counts. We have no access to medical-need registries.</li>
-            <li>Resource counts in the planner are what-if levers, not any utility's actual fleet. Moves are rules over the forecast and are not validated by emergency managers.</li>
-          </ul>
-        </Panel>
-      </div>
-    </div>
   );
 }

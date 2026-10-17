@@ -86,11 +86,49 @@ export interface WatchItem {
   trend: number;
 }
 
+export interface SourceStatus {
+  name: string;
+  ok: boolean;
+  stale: boolean;
+  updated: string | null;
+  age_s: number | null;
+  error: string | null;
+  ms: number;
+}
+
+export interface AlertEvent {
+  event: string;
+  severity: string | null;
+  relevant: boolean;
+  counties: number;
+  fips: string[];
+  headline: string | null;
+}
+
+export interface AlertSummary {
+  count: number;
+  updated: string | null;
+  events: AlertEvent[];
+  by_fips: Record<string, string[]>;
+}
+
 export interface HourEvent {
   type: "hour";
   i: number;
   n: number;
   t: string;
+  /** present only in live mode */
+  live?: boolean;
+  as_of?: string;
+  sources?: SourceStatus[];
+  alerts?: AlertSummary | null;
+  outlook?: { temp_f_mean_next_24h: (number | null)[] };
+  grid_detail?: {
+    has_forecast_for_now: boolean;
+    history_hours: number;
+    wind_share: number;
+    upcoming_forecast: { hour: string; mw: number }[];
+  };
   /** [p24, tier, customers out, p6, p12] per county, same order as the county list */
   counties: [number, Tier, number, number, number][];
   tier_counts: [number, number, number, number];
@@ -422,5 +460,19 @@ export function fmtDay(iso: string): string {
 export function timeAt(history: HistoryPoint[], i: number): string {
   const first = history[0];
   if (!first) return "";
+  const hit = history.find((h) => h.i === i);
+  if (hit) return hit.t; // live ticks are not hourly, so trust the recorded time
   return new Date(new Date(first.t).getTime() + (i - first.i) * 3600 * 1000).toISOString();
+}
+
+/** Chart x-domain: the whole storm for a replay, whatever has arrived so far for live. */
+export function chartDomain(n: number | undefined): [number | string, number | string] {
+  return n ? [0, n - 1] : ["dataMin", "dataMax"];
+}
+
+export function fmtClock(iso: string): string {
+  const ct = new Date(new Date(iso).getTime() - CST);
+  const hh = ct.getUTCHours();
+  const mm = ct.getUTCMinutes();
+  return `${hh % 12 || 12}:${String(mm).padStart(2, "0")} ${hh >= 12 ? "PM" : "AM"} CST`;
 }

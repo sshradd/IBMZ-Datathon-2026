@@ -14,7 +14,15 @@ All public, no login. Fetched by `scripts/fetch_data.py`.
 | US Census Bureau 2023 Gazetteer, counties (centroids) | US government public data | https://www.census.gov/geographies/reference-files/time-series/geo/gazetteer-files.html |
 | US Census Bureau county population estimates by age (`cc-est2023-agesex-all.csv`) | US government public data | https://www.census.gov/data/datasets/time-series/demo/popest/2020s-counties-detail.html |
 
-All training labels and features come from these files. Storm replays in `data/replay/` are derived from them.
+### Live APIs (real-time mode, no login)
+
+| API | Used for | Terms |
+|---|---|---|
+| Open-Meteo Forecast API `api.open-meteo.com/v1/forecast` | Hourly weather, past 72 h and next 24 h | CC BY 4.0, free for non-commercial use |
+| ERCOT public dashboard JSON `ercot.com/api/1/services/read/dashboards/supply-demand.json` and `fuel-mix.json` | 5-minute demand, hourly demand forecast, generation by fuel | Public ERCOT dashboard data; not an official documented API |
+| National Weather Service API `api.weather.gov/alerts/active?area=TX` | Active watches, warnings and advisories | US government public data |
+
+All training labels and features come from the historical files above. Storm replays in `data/replay/` are derived from them.
 
 ## Backend (Python)
 

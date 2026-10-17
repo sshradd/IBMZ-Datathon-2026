@@ -52,6 +52,10 @@ Web app (React + TypeScript, installable as a PWA), organized around four kinds 
 
 Pure-Python server and JSON model, so it runs on s390x with no native wheels except `pydantic-core`. Evidence to capture: `uname -m`, `lscpu`, the header badge, `/api/system` (big-endian), benchmark runs, the container build. Be honest that scoring is small; the Z argument is sustained throughput under surge, isolation and availability for utility data.
 
+## Live mode
+
+A second model trained on only the signals that exist in real time (weather, ERCOT grid telemetry, county profile) scores Texas every minute from three public APIs (Open-Meteo, ERCOT dashboard JSON, NWS). Exposed as a JSON API under `/api/live/*` and as a dashboard mode. No free live county outage feed exists, so live mode has no outage inputs and no ground truth; its short-horizon forecasts are weak and the 24 hour forecast is the one to use.
+
 ## Risks
 
 - Alerts are broad (about a quarter of county-hours on watch during Uri).

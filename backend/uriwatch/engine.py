@@ -383,5 +383,6 @@ class Engine:
 
     def replan(self, resources: dict[str, int]) -> dict:
         """Re-run the planner on the last scored hour with different resource levels."""
-        self.resources = {k: max(0, int(resources.get(k, v))) for k, v in DEFAULT_RESOURCES.items()}
-        return build_plan(self._cands, self.resources, self._state, self.tier_stats)
+        # A what-if never changes the defaults the hourly stream is planned with.
+        res = {k: max(0, int(resources.get(k, v))) for k, v in DEFAULT_RESOURCES.items()}
+        return build_plan(self._cands, res, self._state, self.tier_stats)

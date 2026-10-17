@@ -58,6 +58,46 @@ Laptop baseline (x86_64 MacBook, 8 cores, Python 3.12): about 33k county scores 
 
 The honest framing for Z: scoring is a small job, so a laptop core is fast too. The argument for LinuxONE is sustained throughput under surge (a storm hits every county in the same hours), isolation, availability, and security for utility data, not raw speed on a tiny model.
 
+## Live mode: real-time data API
+
+Press play on **Live now** in the sidebar (or start the server with `URIWATCH_LIVE=1`) and Uri Watch stops replaying history and scores Texas right now. It polls three public APIs with no login, rebuilds the same features the model was trained on, and scores all 254 counties every minute.
+
+| Source | What it gives | Used for |
+|---|---|---|
+| Open-Meteo forecast API | Hourly weather at the same 12 stations, past 72 h and next 24 h | Temperature, ice, snow, wind features and the 24 h outlook |
+| ERCOT public dashboard JSON | 5-minute demand, hourly demand forecast, generation by fuel | Grid stress features |
+| National Weather Service API | Active watches, warnings and advisories by county | Alerts banner and per-county context |
+
+**No free live county outage feed exists** (DOE EAGLE-I live and PowerOutage.us both require access we do not have). So live mode runs a second model, trained by us on only the signals available in real time: weather, grid telemetry and county profile. The outage-based features are dropped, which costs accuracy, especially at short horizons:
+
+| Live-feature model, out of sample | Severe county outages | Alert first | Median lead | AUC 24 h | AUC 12 h | AUC 6 h |
+|---|---|---|---|---|---|---|
+| Winter Storm Uri | 396 | 159 (40%) | 8 h | 0.79 | 0.74 | 0.60 |
+| Winter Storm Elliott | 15 | 2 (13%) | 14 h | 0.81 | 0.75 | 0.52 |
+| Feb 2023 ice storm | 36 | 11 (31%) | 22 h | 0.79 | 0.75 | 0.67 |
+| Aug 2023 heat dome | 17 | 1 (6%) | 19 h | 0.70 | 0.73 | 0.79 |
+
+It catches far fewer outages than the full model, its alerts are more precise (watch tier 27%, prepare 32%, act 34% hit rate against a 2% base rate) and arrive earlier. Lean on the 24 hour forecast: the 6 and 12 hour heads are weak without outage momentum. The outage feed is a pluggable slot: swap in a county outage source and the full model's features come back.
+
+**Honest notes on the feeds.** The ERCOT endpoints are the JSON behind ERCOT's public dashboards, not an official documented API, so they can change. ERCOT publishes demand forecasts only for hours that have not started, so the demand-versus-forecast signal stays neutral until the service has been running long enough to compare (history is kept in `data/live/`, git-ignored). If a feed fails, the last good copy is served and marked stale. The model is scored on live data exactly as it was trained, using recent observed and analysis weather, so the forecast weather only feeds the outlook chart.
+
+### Live API
+
+Start live mode with `POST /api/replay/start {"scenario": "live"}` or run `URIWATCH_LIVE=1 ./run.sh`, then:
+
+| Method | Path | What |
+|---|---|---|
+| GET | `/api/live/forecast?min_tier=watch` | Every county's chance of a severe outage within 6, 12 and 24 h, tier, likely window, reasons, active NWS alerts |
+| GET | `/api/live/grid` | Current ERCOT demand, generation, forecast, feed health |
+| GET | `/api/live/alerts` | Active NWS alerts for Texas, grouped by event and county |
+| GET | `/api/live/plan?crews=40&centers=15&callers=25` | Recommended deployment and moves for the current forecast |
+| GET | `/api/live/status` | Whether live mode is running, polls so far, per-feed status |
+| GET | `/api/events` | Server-Sent Events, one message per poll with the full predict, prescribe and diagnose blocks |
+
+```bash
+curl -s "http://127.0.0.1:8000/api/live/forecast?min_tier=watch" | python3 -m json.tool | head -40
+```
+
 ## The data
 
 All public, no logins. Fetched by `scripts/fetch_data.py` (about 605 MB of Texas rows kept; EAGLE-I is streamed and filtered while downloading).
@@ -83,6 +123,7 @@ About 11 million Texas county-hours; the training set keeps every severe-outage 
 | Predict, diagnose and describe, live scorecard | `backend/uriwatch/engine.py` |
 | Prescribe: resource planner and ranked moves | `backend/uriwatch/plan.py` |
 | Replay sessions | `backend/uriwatch/replay.py` |
+| Live mode: provider clients, live feature builder, live session | `backend/uriwatch/live/` |
 | API + Server-Sent Events | `backend/uriwatch/api.py` |
 | Web app: brief, predict, prescribe, diagnose, describe, evidence, benchmark | `web/src/` |
 
@@ -118,7 +159,7 @@ Reproduce: `cd backend && python -m uriwatch.train` (needs `requirements-train.t
 - It under-sizes statewide events like Uri: the forecast scoreboard on the Predict page shows the gap. It ranks which counties go first better than it counts the total.
 - The heat dome is the weak case: heat-driven outages look different from winter storms and the model catches about a third of them. On Elliott the top-10 ranking is barely better than random.
 - Median lead on Uri is 6 hours because most Texas counties lost power within hours of ERCOT's load shed. Ice storms give longer warning.
-- It does not forecast weather. A real system would add NWS forecasts and radar. Weather comes from 12 stations, so a county can be far from its station.
+- The models score observed weather, not a weather forecast. Live mode pulls the forecast for the outlook chart, but forecast weather is not a model input, because training used observed weather. A real system would train on archived forecasts. Weather comes from 12 stations, so a county can be far from its station.
 - Senior counts come from Census population estimates. We have no access to medical-need registries.
 - The recommended moves are rules written by us and have not been validated by emergency managers.
 - EAGLE-I counts only outages utilities reported to the public map, and the 2023 file renames the count column (handled in `build.py`).
@@ -133,7 +174,8 @@ Reproduce: `cd backend && python -m uriwatch.train` (needs `requirements-train.t
 | GET | `/api/events` | SSE stream: each hour carries the predict, prescribe, diagnose and describe blocks |
 | POST | `/api/plan` | What-if: `{"crews": 40, "centers": 15, "callers": 25}` re-runs the planner on the current hour |
 | GET | `/api/explain/{fips}` | Why the current forecast for one county |
-| GET | `/api/models` | Both models' tiers and out-of-sample metrics |
+| GET | `/api/live/*` | Real-time forecast, grid, alerts, plan and status (see above) |
+| GET | `/api/models` | Tiers and out-of-sample metrics for the full and live-feature models |
 | GET | `/api/system` | Machine, CPU count, byte order (evidence for judges) |
 | GET | `/api/bench` | Saved benchmark results |
 

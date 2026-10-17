@@ -24,7 +24,7 @@ from sklearn.preprocessing import StandardScaler
 
 from .build import HOLDOUT, OUT, REPLAY_DIR, SCENARIOS, hidx
 from .engine import Engine
-from .features import FEATURES, HORIZON_H, HORIZONS
+from .features import FEATURES, HORIZON_H, HORIZONS, IDX
 from .model import LogisticModel
 
 # Tiers are alert budgets, not probabilities: a county-hour is "watch" if its risk is in the
@@ -41,8 +41,20 @@ def weighted_quantile(v: np.ndarray, w: np.ndarray, q: float) -> float:
     return float(v[order][np.searchsorted(cum, q * cum[-1])])
 
 
-def fit(d: dict[str, np.ndarray], mask: np.ndarray, name: str) -> LogisticModel:
-    X, w = d["X"][mask], d["w"][mask]
+# What exists in real time with no login: weather, ERCOT grid telemetry, county profile.
+# Outage counts (and the statewide outage footprint built from them) have no free live feed.
+LIVE_FEATURES = [
+    "temp_c", "apparent_c", "cold_deg", "heat_deg", "temp_drop_24h", "temp_change_3h",
+    "wind_kmh", "precip_6h", "snow_6h", "ice_index", "humidity",
+    "grid_fc_err", "grid_demand_norm", "grid_gen_drop_24h", "grid_wind_share",
+    "state_cold_deg", "log_pop", "hour_sin", "hour_cos",
+]
+
+
+def fit(d: dict[str, np.ndarray], mask: np.ndarray, name: str, features: list[str] | None = None) -> LogisticModel:
+    features = features or list(FEATURES)
+    cols = [IDX[f] for f in features]
+    X, w = d["X"][mask][:, cols], d["w"][mask]
     # Clamp inputs to the training range (0.1th to 99.9th percentile) before anything else.
     lo = np.percentile(X, 0.1, axis=0)
     hi = np.percentile(X, 99.9, axis=0)
@@ -65,11 +77,13 @@ def fit(d: dict[str, np.ndarray], mask: np.ndarray, name: str) -> LogisticModel:
         tiers=tiers,
         lo=[float(v) for v in lo],
         hi=[float(v) for v in hi],
+        features=features,
     )
 
 
 def predict(model: LogisticModel, X: np.ndarray, horizon: int = HORIZON_H) -> np.ndarray:
     w, b = model.heads[horizon]
+    X = X[:, model._sel]
     X = np.clip(X, np.array(model.lo, dtype=np.float32), np.array(model.hi, dtype=np.float32))
     z = (X - np.array(model.mean, dtype=np.float32)) / np.array(model.std, dtype=np.float32)
     return 1.0 / (1.0 + np.exp(-(z @ np.array(w, dtype=np.float32) + b)))
@@ -187,16 +201,9 @@ def ranking_lift(model: LogisticModel, k: int = 10) -> dict:
     return res
 
 
-def main() -> None:
-    d = dict(np.load(OUT / "train.npz"))
+def evaluate(model: LogisticModel, d: dict, train_mask: np.ndarray) -> dict:
+    """Out-of-sample report card for a model trained on `train_mask` only."""
     h = d["h"]
-    print(f"rows {len(d['y']):,}  positives {int(d['y'].sum()):,}  features {len(FEATURES)}", flush=True)
-
-    in_holdout = (h >= hidx(HOLDOUT[0])) & (h <= hidx(HOLDOUT[1]))
-    train_mask = (h < hidx(TRAIN_END)) & ~in_holdout
-    honest = fit(d, train_mask, "honest")
-    print(f"honest model: {int(train_mask.sum()):,} training rows, tiers {honest.tiers}", flush=True)
-
     test_all = np.zeros(len(h), dtype=bool)
     metrics = {
         "train_rows": int(train_mask.sum()),
@@ -204,6 +211,7 @@ def main() -> None:
         "holdout": HOLDOUT,
         "horizons": list(HORIZONS),
         "horizon_h": HORIZON_H,
+        "features": model.features,
         "sets": {},
         "horizon_auc": {},
     }
@@ -211,29 +219,47 @@ def main() -> None:
         m = (h >= hidx(a)) & (h <= hidx(b))
         test_all |= m
         if m.any() and d["y"][m].sum() > 0:
-            metrics["sets"][key] = score_set(honest, d["X"][m], d["y"][m], d["w"][m])
-            metrics["horizon_auc"][key] = horizon_table(honest, d, m)
+            metrics["sets"][key] = score_set(model, d["X"][m], d["y"][m], d["w"][m])
+            metrics["horizon_auc"][key] = horizon_table(model, d, m)
     m = h >= hidx(TRAIN_END)
-    metrics["sets"]["all_after_training"] = score_set(honest, d["X"][m], d["y"][m], d["w"][m])
-    metrics["tier_stats"] = tier_stats(honest, d, test_all)
-    metrics["scenarios"] = replay_scorecards(honest)
-    metrics["ranking"] = ranking_lift(honest)
-    coef = sorted(zip(FEATURES, honest.heads[HORIZON_H][0]), key=lambda fw: abs(fw[1]), reverse=True)
+    metrics["sets"]["all_after_training"] = score_set(model, d["X"][m], d["y"][m], d["w"][m])
+    metrics["tier_stats"] = tier_stats(model, d, test_all)
+    metrics["scenarios"] = replay_scorecards(model)
+    metrics["ranking"] = ranking_lift(model)
+    cols = [IDX[f] for f in model.features]
+    coef = sorted(zip(model.features, model.heads[HORIZON_H][0]), key=lambda fw: abs(fw[1]), reverse=True)
     metrics["top_weights"] = [{"feature": f, "weight": round(v, 3)} for f, v in coef[:10]]
-    honest.metrics = metrics
-    honest.save()
+    return metrics
 
-    final = fit(d, np.ones(len(h), dtype=bool), "final")
-    final.metrics = {
-        "train_rows": int(len(h)),
-        "horizons": list(HORIZONS),
-        "horizon_h": HORIZON_H,
-        "note": "trained on every year including Uri; use the honest model for out-of-sample claims",
-    }
-    final.metrics["scenarios"] = replay_scorecards(final)
-    final.save()
 
-    print(json.dumps({k: v for k, v in metrics.items() if k not in ("sets",)}, indent=1))
+def main() -> None:
+    d = dict(np.load(OUT / "train.npz"))
+    h = d["h"]
+    print(f"rows {len(d['y']):,}  positives {int(d['y'].sum()):,}  features {len(FEATURES)}", flush=True)
+
+    in_holdout = (h >= hidx(HOLDOUT[0])) & (h <= hidx(HOLDOUT[1]))
+    train_mask = (h < hidx(TRAIN_END)) & ~in_holdout
+    everything = np.ones(len(h), dtype=bool)
+
+    for prefix, feats in (("", None), ("live_", LIVE_FEATURES)):
+        honest = fit(d, train_mask, f"{prefix}honest", feats)
+        print(f"{honest.name}: {int(train_mask.sum()):,} rows, tiers {honest.tiers}", flush=True)
+        honest.metrics = evaluate(honest, d, train_mask)
+        honest.save()
+
+        final = fit(d, everything, f"{prefix}final" if prefix else "final", feats)
+        final.metrics = {
+            "train_rows": int(len(h)),
+            "horizons": list(HORIZONS),
+            "horizon_h": HORIZON_H,
+            "features": final.features,
+            "note": "trained on every year including Uri; use the honest model for out-of-sample claims",
+        }
+        final.metrics["scenarios"] = replay_scorecards(final)
+        final.save()
+        m = honest.metrics
+        print(" ", {k: (v["onsets"], v["warned_pct"], v["median_lead_h"], v["false_alerts"]) for k, v in m["scenarios"].items()})
+        print(" ", {t: (m["tier_stats"][t]["precision"], m["tier_stats"][t]["lift"]) for t in TIER_NAMES}, {k: v["24"] for k, v in m["horizon_auc"].items()})
     print("done", flush=True)
 
 

@@ -16,7 +16,7 @@ import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .features import FEATURE_GROUP, FEATURES, GRID_FEATURES, GROUP_ORDER, HORIZON_H, HORIZONS
+from .features import FEATURE_GROUP, FEATURES, GRID_FEATURES, GROUP_ORDER, HORIZON_H, HORIZONS, IDX
 
 MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 
@@ -40,6 +40,9 @@ class LogisticModel:
     lo: list[float] = field(default_factory=list)  # per-feature training range; inputs are clamped to it
     hi: list[float] = field(default_factory=list)
     metrics: dict = field(default_factory=dict)
+    # Which of FEATURES this model uses. The live model drops the outage-based ones, which have
+    # no free real-time feed; callers always pass the full feature vector.
+    features: list[str] = field(default_factory=lambda: list(FEATURES))
 
     def __post_init__(self) -> None:
         # Fold standardisation into each head so scoring is one multiply-add per feature.
@@ -48,6 +51,7 @@ class LogisticModel:
             scale = [wi / s for wi, s in zip(w, self.std)]
             offset = b - sum(wi * m / s for wi, m, s in zip(w, self.mean, self.std))
             self._fold[h] = (scale, offset)
+        self._sel = [IDX[f] for f in self.features]
         self._grid_idx = [i for i, f in enumerate(FEATURES) if f in GRID_FEATURES]
         self._group_idx = {g: [i for i, f in enumerate(FEATURES) if FEATURE_GROUP[f] == g] for g in GROUP_ORDER}
         self._lead = HORIZON_H
@@ -57,9 +61,10 @@ class LogisticModel:
         self._bounds = list(zip(self.lo, self.hi))
 
     def clamp(self, x: list[float]) -> list[float]:
-        """Keep every input inside the range seen in training, so a storm far bigger than any
-        the model learned from cannot push the score off the chart by extrapolation."""
-        return [lo if v < lo else hi if v > hi else v for v, (lo, hi) in zip(x, self._bounds)]
+        """Pick this model's inputs out of the full vector and keep each inside the range seen
+        in training, so a storm far bigger than any the model learned from cannot push the
+        score off the chart by extrapolation."""
+        return [lo if v < lo else hi if v > hi else v for v, (lo, hi) in zip((x[i] for i in self._sel), self._bounds)]
 
     # ---- scoring -------------------------------------------------------
     def _p(self, h: int, x: list[float]) -> float:
@@ -89,7 +94,11 @@ class LogisticModel:
     def contributions(self, x: list[float]) -> list[float]:
         """Per-feature push on the 24 h log-odds, relative to an average county-hour."""
         w = self.heads[self._lead][0]
-        return [wi * (v - m) / s for wi, v, m, s in zip(w, self.clamp(x), self.mean, self.std)]
+        part = [wi * (v - m) / s for wi, v, m, s in zip(w, self.clamp(x), self.mean, self.std)]
+        full = [0.0] * len(FEATURES)  # features this model does not use contribute nothing
+        for j, i in enumerate(self._sel):
+            full[i] = part[j]
+        return full
 
     def group_contributions(self, contribs: list[float]) -> dict[str, float]:
         return {g: sum(contribs[i] for i in idx) for g, idx in self._group_idx.items()}
@@ -118,7 +127,7 @@ class LogisticModel:
             json.dumps(
                 {
                     "name": self.name,
-                    "features": FEATURES,
+                    "features": self.features,
                     "mean": self.mean,
                     "std": self.std,
                     "heads": {str(h): {"weights": w, "bias": b} for h, (w, b) in self.heads.items()},
@@ -135,9 +144,12 @@ class LogisticModel:
     @classmethod
     def load(cls, name: str) -> "LogisticModel":
         d = json.loads((MODELS_DIR / f"{name}.json").read_text())
-        if d["features"] != FEATURES:
-            raise ValueError(f"{name}.json was trained on a different feature list; retrain")
+        if not set(d["features"]) <= set(FEATURES):
+            raise ValueError(f"{name}.json uses features this code does not know; retrain")
         heads = {int(h): (v["weights"], v["bias"]) for h, v in d["heads"].items()}
         if set(heads) != set(HORIZONS):
             raise ValueError(f"{name}.json has heads {sorted(heads)}; expected {list(HORIZONS)}")
-        return cls(d["name"], d["mean"], d["std"], heads, d["tiers"], d.get("lo", []), d.get("hi", []), d.get("metrics", {}))
+        return cls(
+            d["name"], d["mean"], d["std"], heads, d["tiers"],
+            lo=d.get("lo", []), hi=d.get("hi", []), metrics=d.get("metrics", {}), features=d["features"],
+        )

@@ -22,13 +22,18 @@ from pydantic import BaseModel, Field
 from .engine import TIER_NAMES, explain
 from .features import FEATURES, GROUPS
 from .model import WINDOWS
+from .live import config as live_config
+from .live.session import LiveSession
 from .replay import DEFAULT_MODEL, Session, available, load_bundle, load_model
 
 ROOT = Path(__file__).resolve().parents[2]
 WEB_DIST = ROOT / "web" / "dist"
 BENCH_RESULTS = ROOT / "bench" / "results"
 
+MODEL_NAMES = ("honest", "final", "live_honest", "live_final")
+
 SCENARIO_TITLES = {
+    "live": "Live now (ERCOT, NWS, Open-Meteo)",
     "uri": "Winter Storm Uri (Feb 2021)",
     "elliott": "Winter Storm Elliott (Dec 2022)",
     "ice2023": "February 2023 ice storm",
@@ -38,7 +43,7 @@ SCENARIO_TITLES = {
 
 class StartConfig(BaseModel):
     scenario: str = "uri"
-    model: str | None = Field(default=None, description="honest or final; default is the honest model")
+    model: str | None = Field(default=None, description="honest, final, live_honest or live_final; default depends on the scenario")
     speed: float = Field(default=12.0, gt=0, le=240, description="Replay hours per second")
 
 
@@ -72,9 +77,18 @@ class Hub:
 class AppState:
     def __init__(self) -> None:
         self.hub = Hub()
-        self.session: Session | None = None
+        self.session: Session | LiveSession | None = None
         self.speed = 12.0
         self.task: asyncio.Task | None = None
+        self.last_msg: str | None = None  # sent to dashboards that connect mid-run
+
+    def publish(self, msg: str, remember: bool = True) -> None:
+        self.last_msg = msg if remember else None
+        self.hub.publish(msg)
+
+    @property
+    def is_live(self) -> bool:
+        return isinstance(self.session, LiveSession)
 
     @property
     def running(self) -> bool:
@@ -92,7 +106,22 @@ class AppState:
             "speed": self.speed,
         }
 
+    async def run_live(self) -> None:
+        """Poll the public APIs and score every county, forever. The network call runs in a thread
+        so the event loop (and the dashboard stream) never blocks on it."""
+        loop = asyncio.get_running_loop()
+        while isinstance(self.session, LiveSession):
+            try:
+                res = await loop.run_in_executor(None, self.session.step)
+                self.publish(json.dumps(res, separators=(",", ":")))
+            except Exception as e:  # a failed poll must not kill the loop
+                self.hub.publish(json.dumps({"type": "error", "message": str(e)[:200]}))
+            await asyncio.sleep(live_config.POLL_SECONDS)
+
     async def run(self) -> None:
+        if self.is_live:
+            await self.run_live()
+            return
         tick, carry = 0.1, 0.0
         while self.session and not self.session.done:
             carry += self.speed * tick
@@ -101,9 +130,9 @@ class AppState:
                 res = self.session.step()
                 if res is None:
                     break
-                self.hub.publish(json.dumps(res, separators=(",", ":")))
+                self.publish(json.dumps(res, separators=(",", ":")))
             await asyncio.sleep(tick)
-        self.hub.publish(json.dumps({"type": "end", **{**self.status(), "running": False}}))
+        self.publish(json.dumps({"type": "end", **{**self.status(), "running": False}}), remember=False)
 
     def stop(self) -> None:
         if self.task:
@@ -114,6 +143,10 @@ class AppState:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.s = AppState()
+    if os.environ.get("URIWATCH_LIVE") == "1":  # serve live data with no dashboard open
+        st = app.state.s
+        st.session = LiveSession()
+        st.task = asyncio.create_task(st.run())
     yield
     app.state.s.stop()
 
@@ -146,7 +179,16 @@ def system() -> dict:
 
 @app.get("/api/scenarios")
 def scenarios() -> list[dict]:
-    out = []
+    out = [
+        {
+            "key": "live",
+            "title": SCENARIO_TITLES["live"],
+            "hours": 0,
+            "start": "",
+            "end": "",
+            "default_model": "live_final",
+        }
+    ]
     for key in available():
         b = load_bundle(key)
         out.append(
@@ -173,7 +215,7 @@ def counties(scenario: str = "uri") -> list[dict]:
 @app.get("/api/models")
 def models() -> dict:
     out = {}
-    for name in ("honest", "final"):
+    for name in MODEL_NAMES:
         try:
             m = load_model(name)
         except FileNotFoundError:
@@ -191,13 +233,15 @@ def state(request: Request) -> dict:
 async def replay_start(cfg: StartConfig, request: Request) -> dict:
     s = _s(request)
     s.stop()
+    if cfg.model is not None and cfg.model not in MODEL_NAMES:
+        raise HTTPException(404, "unknown model")
     try:
-        s.session = Session(cfg.scenario, cfg.model)
+        s.session = LiveSession(cfg.model) if cfg.scenario == "live" else Session(cfg.scenario, cfg.model)
     except (KeyError, FileNotFoundError):
         raise HTTPException(404, "unknown scenario or model")
     s.speed = cfg.speed
     s.task = asyncio.create_task(s.run())
-    s.hub.publish(json.dumps({"type": "reset", **s.status()}))
+    s.publish(json.dumps({"type": "reset", **s.status()}), remember=False)
     return s.status()
 
 
@@ -228,10 +272,12 @@ async def replay_seek(cfg: SeekConfig, request: Request) -> dict:
     s = _s(request)
     if not s.session:
         raise HTTPException(409, "no replay running")
+    if s.is_live:
+        raise HTTPException(409, "live mode cannot seek")
     was = s.running
     s.stop()
     s.session.seek(cfg.i)
-    s.hub.publish(json.dumps({"type": "reset", **s.status()}))
+    s.publish(json.dumps({"type": "reset", **s.status()}), remember=False)
     if was and not s.session.done:
         s.task = asyncio.create_task(s.run())
     return s.status()
@@ -282,9 +328,13 @@ async def events(request: Request) -> StreamingResponse:
     q: asyncio.Queue = asyncio.Queue(maxsize=2000)
     hub.subscribers.add(q)
 
+    first = _s(request).last_msg
+
     async def stream():
         try:
             yield "retry: 2000\n\n"
+            if first:  # a dashboard that connects mid-run starts from the latest hour
+                yield f"data: {first}\n\n"
             while not await request.is_disconnected():
                 try:
                     msg = await asyncio.wait_for(q.get(), timeout=10)
@@ -314,5 +364,100 @@ def bench_results() -> list[dict]:
     return out
 
 
+
+
+# ------------------------------------------------------------------ live data API
+# Real-time data and forecasts as a plain JSON API, for the dashboard or anything else.
+# Start it with POST /api/replay/start {"scenario": "live"}, or run the server with URIWATCH_LIVE=1.
+
+
+def _live(request: Request) -> LiveSession:
+    s = _s(request)
+    if not s.is_live or s.session.latest is None:
+        raise HTTPException(
+            409,
+            'live mode is not running yet: POST /api/replay/start {"scenario": "live"} (or start the server with URIWATCH_LIVE=1)',
+        )
+    return s.session
+
+
+@app.get("/api/live/status")
+def live_status(request: Request) -> dict:
+    s = _s(request)
+    live = s.session if s.is_live else None
+    return {
+        "running": bool(live and s.running),
+        "model": live.model_name if live else None,
+        "polls": live.i if live else 0,
+        "as_of": live.latest["as_of"] if live and live.latest else None,
+        "poll_seconds": live_config.POLL_SECONDS,
+        "sources": live.latest["sources"] if live and live.latest else [],
+        "outage_feed": False,
+        "note": "No free live county outage feed exists, so the live model forecasts from weather, grid telemetry and county profile.",
+    }
+
+
+@app.get("/api/live/forecast")
+def live_forecast(request: Request, min_tier: str = "clear") -> dict:
+    """Outage-risk forecast for every Texas county: chance of a severe outage within 6, 12 and 24 hours."""
+    live = _live(request)
+    res, eng = live.latest, live.engine
+    order = ["clear", "watch", "prepare", "act"]
+    if min_tier not in order:
+        raise HTTPException(422, f"min_tier must be one of {order}")
+    alerts = (res["alerts"] or {}).get("by_fips", {})
+    out = []
+    for c, cty in enumerate(eng.counties):
+        p24, tier, _, p6, p12 = res["counties"][c]
+        if tier < order.index(min_tier):
+            continue
+        out.append(
+            {
+                "fips": cty["fips"],
+                "name": cty["name"],
+                "p6": p6,
+                "p12": p12,
+                "p24": p24,
+                "tier": order[tier],
+                "window": WINDOWS[eng.model.window(p6, p12, p24)],
+                "population": cty["pop"],
+                "seniors": cty["pop65"],
+                "reasons": [r["text"] for r in explain(eng.model, eng.last_x[c], 3)] if tier else [],
+                "nws_alerts": alerts.get(cty["fips"], []),
+            }
+        )
+    out.sort(key=lambda r: -r["p24"])
+    return {
+        "as_of": res["as_of"],
+        "model": live.model_name,
+        "definition": "severe outage = at least 10% of a county's customers and at least 2,500 customers without power",
+        "tiers": eng.model.tiers,
+        "counties": out,
+    }
+
+
+@app.get("/api/live/grid")
+def live_grid(request: Request) -> dict:
+    """Current ERCOT demand, generation and demand forecast, and how the feeds are doing."""
+    live = _live(request)
+    r = live.latest
+    return {"as_of": r["as_of"], "grid": r["grid"], "detail": r["grid_detail"], "state": r["diagnose"]["state"], "sources": r["sources"]}
+
+
+@app.get("/api/live/alerts")
+def live_alerts(request: Request) -> dict:
+    """Active National Weather Service watches, warnings and advisories for Texas."""
+    live = _live(request)
+    return live.latest["alerts"] or {"count": 0, "events": [], "by_fips": {}}
+
+
+@app.get("/api/live/plan")
+def live_plan(request: Request, crews: int = 40, centers: int = 15, callers: int = 25) -> dict:
+    """Recommended deployment and moves for the current live forecast."""
+    live = _live(request)
+    return live.engine.replan({"crews": crews, "centers": centers, "callers": callers})
+
+
+# Keep this last: the static mount catches every path that no route above claimed.
 if WEB_DIST.exists():
     app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")

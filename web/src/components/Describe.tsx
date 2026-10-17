@@ -1,5 +1,5 @@
 import { Area, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { compact, fmtDay, fmtTime, n0, timeAt } from "../api";
+import { chartDomain, compact, fmtDay, fmtTime, n0, timeAt } from "../api";
 import type { Ctx } from "../App";
 import TexasMap from "./TexasMap";
 import { Empty, Kpi, Legend, Lens, Panel } from "./ui";
@@ -21,6 +21,13 @@ export default function Describe({ replay, tiers, selected, select }: Ctx) {
 
       {!latest ? (
         <Empty>Start the storm replay to watch it unfold.</Empty>
+      ) : latest.live ? (
+        <Panel title="No ground truth in live mode">
+          <p className="max-w-2xl text-[13.5px] text-mut">
+            This page reports what utilities actually measured. No free live feed carries county outage counts, so live mode shows forecasts only. Run a storm
+            replay to see the ground truth the forecasts are checked against, or plug a county outage feed in and Describe lights up.
+          </p>
+        </Panel>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
@@ -46,7 +53,7 @@ export default function Describe({ replay, tiers, selected, select }: Ctx) {
                 <XAxis
                   dataKey="i"
                   type="number"
-                  domain={[0, Math.max(replay.state?.n ?? 1, 2) - 1]}
+                  domain={chartDomain(replay.state?.n)}
                   tickFormatter={(i: number) => fmtDay(timeAt(history, i))}
                   tick={{ fill: "var(--mut)", fontSize: 10 }}
                   tickCount={8}

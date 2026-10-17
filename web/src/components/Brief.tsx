@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ArrowRight, Play } from "lucide-react";
-import { compact, fmtTime, n0, pct } from "../api";
+import { compact, fmtClock, fmtTime, n0, pct } from "../api";
 import type { Ctx } from "../App";
 import TexasMap, { TIER_COLOR, type MapMode } from "./TexasMap";
 import { DriverBar, Empty, Kpi, Legend, MoveCard, Panel } from "./ui";
@@ -45,6 +45,8 @@ export default function Brief({ replay, tiers, decisions, decide, selected, sele
   const state0 = latest.diagnose.state;
   const visible = plan.moves.filter((m) => decisions[m.id] !== "dismissed").slice(0, 4);
   const approved = Object.values(decisions).filter((v) => v === "approved").length;
+  const live = !!latest.live;
+  const nws = (latest.alerts?.events ?? []).filter((e) => e.relevant);
 
   const headline =
     exp[2] >= 0.5 ? (
@@ -62,7 +64,7 @@ export default function Brief({ replay, tiers, decisions, decide, selected, sele
     <div className="space-y-5">
       <section className="brief">
         <p className="eyebrow dash">
-          Situation brief · {fmtTime(latest.t)}
+          {live ? `Live brief · as of ${fmtClock(latest.as_of ?? latest.t)}` : `Situation brief · ${fmtTime(latest.t)}`}
         </p>
         <h1 className="mt-4">{headline}</h1>
         <p className="sub">
@@ -77,7 +79,20 @@ export default function Brief({ replay, tiers, decisions, decide, selected, sele
               , demand is <b>{state0.demand_norm >= 0 ? "+" : ""}{(state0.demand_norm * 100).toFixed(0)}%</b> against its two-week norm
             </>
           )}
-          , and <b>{latest.describe.severe_now}</b> {latest.describe.severe_now === 1 ? "county has" : "counties have"} already lost power.
+          {live ? (
+            nws.length > 0 ? (
+              <>
+                . The National Weather Service has <b>{nws.length}</b> grid-relevant alert {nws.length === 1 ? "type" : "types"} active:{" "}
+                {nws.slice(0, 3).map((e) => e.event).join(", ")}.
+              </>
+            ) : (
+              <>. No grid-relevant National Weather Service alerts are active.</>
+            )
+          ) : (
+            <>
+              , and <b>{latest.describe.severe_now}</b> {latest.describe.severe_now === 1 ? "county has" : "counties have"} already lost power.
+            </>
+          )}
         </p>
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <button className="btn btn--primary" onClick={() => go("prescribe")}>
@@ -113,9 +128,7 @@ export default function Brief({ replay, tiers, decisions, decide, selected, sele
           sub={`${compact(p.people_exposed)} people in counties likely to lose power`}
           foot={
             <>
-              <span>
-                out now <b>{compact(latest.out_total)}</b>
-              </span>
+              <span>{live ? "forecast, not reported" : <>out now <b>{compact(latest.out_total)}</b></>}</span>
             </>
           }
         />
@@ -126,7 +139,13 @@ export default function Brief({ replay, tiers, decisions, decide, selected, sele
           foot={
             <>
               <span>
-                already out <b>{compact(latest.describe.seniors_out)}</b>
+                {live ? (
+                  "no live outage feed"
+                ) : (
+                  <>
+                    already out <b>{compact(latest.describe.seniors_out)}</b>
+                  </>
+                )}
               </span>
             </>
           }
@@ -134,8 +153,8 @@ export default function Brief({ replay, tiers, decisions, decide, selected, sele
         />
         <Kpi
           label="Plan coverage"
-          value={pct(plan.coverage.crews)}
-          sub={`of the crew need is covered by ${plan.resources.crews} crews`}
+          value={plan.deployments.length ? pct(plan.coverage.crews) : "–"}
+          sub={plan.deployments.length ? `of the crew need is covered by ${plan.resources.crews} crews` : "nothing to deploy against right now"}
           foot={
             <>
               <span>
@@ -208,6 +227,16 @@ export default function Brief({ replay, tiers, decisions, decide, selected, sele
         </div>
       </div>
 
+      {live ? (
+        <Panel title="Live data" note="describe">
+          <div className="callout">
+            <span>
+              <b>No outage feed in live mode.</b> The live model forecasts from weather, ERCOT grid telemetry and county profile. Open <b>Live data</b> in the
+              sidebar for feed health, NWS alerts and the API.
+            </span>
+          </div>
+        </Panel>
+      ) : (
       <Panel title="What has happened so far" note="describe">
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-4">
           <MiniStat label="Customers without power" value={n0(latest.out_total)} />
@@ -220,6 +249,7 @@ export default function Brief({ replay, tiers, decisions, decide, selected, sele
           />
         </div>
       </Panel>
+      )}
     </div>
   );
 }

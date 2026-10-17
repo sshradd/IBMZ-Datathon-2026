@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { fmtDay, fmtTime, getJSON, pct, timeAt, type Explain } from "../api";
+import { chartDomain, fmtDay, fmtTime, getJSON, pct, timeAt, type Explain } from "../api";
 import type { Ctx } from "../App";
 import { DriverBar, Empty, Legend, Lens, Panel, TierChip } from "./ui";
 
@@ -109,7 +109,7 @@ export default function Diagnose({ replay, selected, select }: Ctx) {
             <XAxis
               dataKey="i"
               type="number"
-              domain={[0, Math.max(replay.state?.n ?? 1, 2) - 1]}
+              domain={chartDomain(replay.state?.n)}
               tickFormatter={(i: number) => fmtDay(timeAt(history, i))}
               tick={{ fill: "var(--mut)", fontSize: 10 }}
               tickCount={8}
