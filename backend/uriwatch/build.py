@@ -25,6 +25,7 @@ import pandas as pd
 
 from .features import (
     FEATURES,
+    HORIZONS,
     HORIZON_H,
     N_FEATURES,
     PEOPLE_PER_CUSTOMER,
@@ -254,11 +255,11 @@ def state_features(counties: pd.DataFrame, out: np.ndarray, st_feats) -> dict[st
     }
 
 
-def onset_labels(o: np.ndarray, thr: float):
-    """y[h] = 1 if customers out first reaches `thr` within HORIZON_H hours.
+def onset_labels(o: np.ndarray, thr: float, horizon: int = HORIZON_H):
+    """y[h] = 1 if customers out first reaches `thr` within `horizon` hours.
     eligible[h] = not already severe at h (we predict onset, not persistence)."""
     n = len(o)
-    ahead = pd.Series(o[::-1]).rolling(HORIZON_H, min_periods=1).max().to_numpy()[::-1]
+    ahead = pd.Series(o[::-1]).rolling(horizon, min_periods=1).max().to_numpy()[::-1]
     fut = np.empty(n, dtype=np.float32)
     fut[:-1] = ahead[1:]
     fut[-1] = 0
@@ -274,21 +275,26 @@ def build_training(counties, out, st_feats, near, grid, state, seed: int = 0) ->
     full_mask = np.zeros(N_HOURS, dtype=bool)
     for _, a, b in SCENARIOS.values():
         full_mask[hidx(a) : hidx(b) + 1] = True
-    Xs, ys, ws, cs, hs = [], [], [], [], []
+    Xs, ys, ws, cs, hs = [], {k: [] for k in HORIZONS}, [], [], []
     for c in range(len(counties)):
         X = county_feature_matrix(c, counties, out, st_feats, near, grid, state)
         thr = severe_threshold(counties.loc[c, "pop"])
-        y, elig = onset_labels(out[c], thr)
+        labels = {k: onset_labels(out[c], thr, k) for k in HORIZONS}
+        y, elig = labels[HORIZON_H]  # sampling follows the widest horizon: its positives include the others'
         keep = elig & (full_mask | (y == 1) | (rng.random(N_HOURS) < NEG_KEEP))
         idx = np.nonzero(keep)[0]
         w = np.where(full_mask[idx] | (y[idx] == 1), 1.0, 1.0 / NEG_KEEP).astype(np.float32)
-        Xs.append(X[idx]); ys.append(y[idx]); ws.append(w)
+        Xs.append(X[idx]); ws.append(w)
+        for k in HORIZONS:
+            ys[k].append(labels[k][0][idx])
         cs.append(np.full(len(idx), c, dtype=np.int16)); hs.append(idx.astype(np.int32))
         if c % 50 == 0:
             print(f"  features county {c}/{len(counties)}", flush=True)
     return {
-        "X": np.concatenate(Xs), "y": np.concatenate(ys), "w": np.concatenate(ws),
+        "X": np.concatenate(Xs), "w": np.concatenate(ws),
         "c": np.concatenate(cs), "h": np.concatenate(hs),
+        **{f"y{k}": np.concatenate(ys[k]) for k in HORIZONS},
+        "y": np.concatenate(ys[HORIZON_H]),
     }
 
 

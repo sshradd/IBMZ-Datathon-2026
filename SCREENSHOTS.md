@@ -13,11 +13,11 @@ Judges look for screenshots of the LinuxONE instance and the platform capabiliti
 ## App running on Z
 
 - [ ] `./run.sh` output in the SSH terminal
-- [ ] Dashboard header badge: "IBM LinuxONE · s390x"
+- [ ] Sidebar badge: "IBM LinuxONE"
 - [ ] `curl -s localhost:8000/api/system` output (`"byteorder": "big"`, `"is_ibm_z": true`)
 - [ ] Storm replay of Winter Storm Uri mid-stream, honest model, "Out of sample" label visible
-- [ ] "Who first" tab with the priority list
-- [ ] A county's plain-English reasons
+- [ ] Prescribe page with the ranked moves and resource planner
+- [ ] Diagnose page with one county opened up
 
 ## Benchmark
 

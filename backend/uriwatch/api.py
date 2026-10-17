@@ -19,8 +19,9 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .engine import explain
-from .features import FEATURES
+from .engine import TIER_NAMES, explain
+from .features import FEATURES, GROUPS
+from .model import WINDOWS
 from .replay import DEFAULT_MODEL, Session, available, load_bundle, load_model
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -47,6 +48,12 @@ class SpeedConfig(BaseModel):
 
 class SeekConfig(BaseModel):
     i: int = Field(ge=0)
+
+
+class PlanConfig(BaseModel):
+    crews: int = Field(default=40, ge=0, le=200)
+    centers: int = Field(default=15, ge=0, le=100)
+    callers: int = Field(default=25, ge=0, le=200)
 
 
 class Hub:
@@ -230,6 +237,15 @@ async def replay_seek(cfg: SeekConfig, request: Request) -> dict:
     return s.status()
 
 
+@app.post("/api/plan")
+def plan(cfg: PlanConfig, request: Request) -> dict:
+    """What-if: re-run the deployment planner on the current hour with different resource levels."""
+    s = _s(request)
+    if not s.session or not s.session.engine.last_x:
+        raise HTTPException(409, "no replay running")
+    return s.session.engine.replan(cfg.model_dump())
+
+
 @app.get("/api/explain/{fips}")
 def explain_county(fips: str, request: Request) -> dict:
     """Why the current score for one county, from the last scored hour."""
@@ -241,10 +257,20 @@ def explain_county(fips: str, request: Request) -> dict:
         if cty["fips"] == fips:
             x = eng.last_x[c]
             contribs = eng.model.contributions(x)
+            p6, p12, p24 = eng.model.risks(x)
             return {
                 "county": cty,
-                "risk": round(eng.last_risk[c], 4),
+                "risk": round(p24, 4),
+                "p6": round(p6, 4),
+                "p12": round(p12, 4),
+                "p24": round(p24, 4),
+                "window": WINDOWS[eng.model.window(p6, p12, p24)],
+                "tier": TIER_NAMES[eng.model.tier(p24)],
                 "reasons": explain(eng.model, x, top=5),
+                "groups": {
+                    g: {"label": GROUPS[g][0], "push": round(v, 3)}
+                    for g, v in eng.model.group_contributions(contribs).items()
+                },
                 "contributions": {f: round(v, 3) for f, v in zip(FEATURES, contribs)},
             }
     raise HTTPException(404, "unknown county")

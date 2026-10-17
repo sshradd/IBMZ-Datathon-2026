@@ -30,7 +30,7 @@ For each county-hour, the chance that outages cross a severe line (at least 10% 
 
 Features (25, all known at the time): outage level and momentum, local weather (temperature, cold, heat, ice, snow, wind, humidity), ERCOT demand versus forecast and generation drop, statewide storm footprint (share of Texas already in severe outage, spread rate, statewide cold), county size, time of day.
 
-Model: logistic regression (scikit-learn, laptop) exported to JSON and scored in pure Python.
+Model: logistic regression with one head per horizon (6, 12 and 24 hours), trained with scikit-learn on a laptop, exported to JSON and scored in pure Python. Inputs are clamped to the training range.
 
 ## Evaluation
 
@@ -40,11 +40,13 @@ Model: logistic regression (scikit-learn, laptop) exported to JSON and scored in
 
 ## Product
 
-Web app (React + TypeScript, installable as a PWA):
-- **Storm replay:** county dot map, scorecard, county explanation, statewide timeline, grid and throughput tiles.
-- **Who first:** counties on alert but not yet out, ranked by risk times seniors, with reasons.
-- **The model:** out-of-sample table, top weights, limits.
-- **Benchmark:** county scores per second and latency, laptop versus LinuxONE.
+Web app (React + TypeScript, installable as a PWA), organized around four kinds of analytics:
+- **Situation brief:** one-sentence forecast, KPI cards, top recommended moves, risk map.
+- **Predict:** 6/12/24 h forecasts per county, watchlist with trend, expected onsets, forecast scoreboard (issued 24 h ago vs what happened), per-window AUC.
+- **Prescribe:** ranked moves with approve/dismiss, resource planner (crews, centers, call teams) with coverage versus a population-only split, deployment table, exportable action plan.
+- **Diagnose:** signal-family drivers, county drill-down, ERCOT demand versus forecast and temperature, cause mix of warned outages.
+- **Describe:** customers out, severe counties, peak, customer-hours lost, seniors without power, hardest-hit counties.
+- **Evidence** and **On IBM Z:** out-of-sample results, tier track record, honest limits, benchmark.
 
 ## IBM LinuxONE
 

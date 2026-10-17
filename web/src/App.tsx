@@ -1,19 +1,15 @@
-import { useEffect, useState } from "react";
-import clsx from "clsx";
-import { Cpu, Moon, Sun } from "lucide-react";
-import { useReplay, usePoll, type SystemInfo } from "./api";
-import LiveView from "./components/LiveView";
-import Outreach from "./components/Outreach";
-import ModelFacts from "./components/ModelFacts";
+import { useEffect, useMemo, useState } from "react";
+import { getJSON, useReplay, usePoll, type ModelInfo, type SystemInfo } from "./api";
+import Sidebar, { type View } from "./components/Sidebar";
+import Transport from "./components/Transport";
+import type { MoveState } from "./components/ui";
+import Brief from "./components/Brief";
+import Predict from "./components/Predict";
+import Prescribe from "./components/Prescribe";
+import Diagnose from "./components/Diagnose";
+import Describe from "./components/Describe";
+import Evidence from "./components/Evidence";
 import Benchmark from "./components/Benchmark";
-
-type Tab = "live" | "outreach" | "model" | "bench";
-const TABS: { id: Tab; label: string }[] = [
-  { id: "live", label: "Storm replay" },
-  { id: "outreach", label: "Who first" },
-  { id: "model", label: "The model" },
-  { id: "bench", label: "Benchmark" },
-];
 
 type Theme = "dark" | "light";
 
@@ -28,8 +24,13 @@ function initialTheme(): Theme {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("live");
+  const [view, setView] = useState<View>("brief");
   const [theme, setTheme] = useState<Theme>(initialTheme);
+  const [scenario, setScenario] = useState("uri");
+  const [model, setModel] = useState<"" | "honest" | "final">("");
+  const [decisions, setDecisions] = useState<Record<string, MoveState>>({});
+  const [selected, setSelected] = useState<string | null>(null);
+  const [models, setModels] = useState<Record<string, ModelInfo> | null>(null);
   const replay = useReplay();
   const system = usePoll<SystemInfo>("/api/system", 30000);
 
@@ -42,70 +43,66 @@ export default function App() {
     }
   }, [theme]);
 
+  useEffect(() => {
+    getJSON<Record<string, ModelInfo>>("/api/models").then(setModels).catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (replay.state?.scenario) setScenario(replay.state.scenario);
+  }, [replay.state?.scenario]);
+  // A new replay starts a new decision log.
+  useEffect(() => {
+    if (!replay.state?.scenario || replay.state.i === 0) setDecisions({});
+  }, [replay.state?.scenario, replay.state?.i === 0]);
+
+  const decide = (id: string, s: MoveState) => setDecisions((d) => ({ ...d, [id]: s }));
+  const tiers = useMemo(() => {
+    const t = models?.honest?.tiers;
+    return t ? { watch: t.watch, prepare: t.prepare, act: t.act } : null;
+  }, [models]);
+
+  const ctx = { replay, tiers, models, decisions, decide, selected, select: setSelected, go: setView, scenario, model };
+  const pending = (replay.latest?.prescribe.moves ?? []).filter((m) => !decisions[m.id]).length;
+
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-10 pt-5">
-      <header className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Mark />
-        <div className="mr-auto">
-          <h1 className="text-[17px] font-semibold tracking-tight">Uri Watch</h1>
-          <p className="eyebrow mt-0.5">Which Texas counties lose power next, and who needs help first</p>
+    <div className="app">
+      <Sidebar
+        view={view}
+        onView={setView}
+        moves={pending}
+        scenarios={replay.scenarios}
+        scenario={scenario}
+        onScenario={setScenario}
+        model={model}
+        onModel={setModel}
+        system={system}
+        theme={theme}
+        onTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
+      />
+      <div className="main">
+        <Transport replay={replay} scenario={scenario} model={model || null} />
+        <div className="main-in">
+          {view === "brief" && <Brief {...ctx} />}
+          {view === "predict" && <Predict {...ctx} />}
+          {view === "prescribe" && <Prescribe {...ctx} />}
+          {view === "diagnose" && <Diagnose {...ctx} />}
+          {view === "describe" && <Describe {...ctx} />}
+          {view === "evidence" && <Evidence models={models} />}
+          {view === "bench" && <Benchmark system={system} />}
         </div>
-        {system && (
-          <span
-            className={clsx(
-              "mono flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px]",
-              system.is_ibm_z ? "border-info text-info" : "border-line text-mut",
-            )}
-            title={system.platform}
-          >
-            <Cpu className="h-3.5 w-3.5" />
-            {system.is_ibm_z ? "IBM LinuxONE" : "host"} · {system.machine} · {system.cpus} cpu
-          </span>
-        )}
-        <span className="flex items-center gap-1.5">
-          <span
-            className={clsx("h-2 w-2 rounded-full", replay.connected ? "bg-gain" : "bg-loss")}
-            aria-hidden
-          />
-          <span className="eyebrow">{replay.connected ? "live" : "offline"}</span>
-        </span>
-        <button
-          className="btn px-2.5 py-1.5"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
-        >
-          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </button>
-      </header>
-
-      <nav className="mb-5 flex gap-6 border-b border-line" aria-label="Views">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            aria-current={tab === t.id ? "page" : undefined}
-            className={clsx(
-              "eyebrow -mb-px border-b-2 pb-2.5 pt-1 transition-colors",
-              tab === t.id ? "border-signal text-fg" : "border-transparent hover:text-fg",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
-
-      {tab === "live" && <LiveView replay={replay} />}
-      {tab === "outreach" && <Outreach latest={replay.latest} state={replay.state} />}
-      {tab === "model" && <ModelFacts />}
-      {tab === "bench" && <Benchmark system={system} />}
+      </div>
     </div>
   );
 }
 
-function Mark() {
-  return (
-    <svg viewBox="0 0 32 32" className="h-8 w-8" aria-hidden>
-      <path d="M17.500 3 7 18h7l-2 11L25 13h-7.500z" fill="var(--signal)" />
-    </svg>
-  );
-}
+export type Ctx = {
+  replay: ReturnType<typeof useReplay>;
+  tiers: { watch: number; prepare: number; act: number } | null;
+  models: Record<string, ModelInfo> | null;
+  decisions: Record<string, MoveState>;
+  decide: (id: string, s: MoveState) => void;
+  selected: string | null;
+  select: (fips: string | null) => void;
+  go: (v: View) => void;
+  scenario: string;
+  model: "" | "honest" | "final";
+};

@@ -39,4 +39,8 @@ def test_replay_start_seek_explain(client):
     assert st["i"] == 150
     e = client.get("/api/explain/48201")  # Harris County
     assert e.status_code == 200 and 0 <= e.json()["risk"] <= 1
+    assert e.json()["p6"] <= e.json()["p12"] <= e.json()["p24"]
+    pl = client.post("/api/plan", json={"crews": 10, "centers": 3, "callers": 5})
+    assert pl.status_code == 200 and pl.json()["resources"]["crews"] == 10
+    assert sum(d["crews"] for d in pl.json()["deployments"]) <= 10
     assert client.post("/api/replay/start", json={"scenario": "nope"}).status_code == 404

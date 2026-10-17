@@ -7,25 +7,24 @@ honest  trained only on data before Dec 2022 and with Feb 2021 removed. It has
         Aug 2023 heat dome, so replaying them is a real out-of-sample test.
 final   trained on everything, for forward-looking use.
 
-Training uses scikit-learn on a laptop. The result is plain JSON weights that
-the pure-Python server (and the s390x LinuxONE box) loads with no native code.
+Each model has three heads (6, 12 and 24 hours). Training uses scikit-learn on a
+laptop. The result is plain JSON weights that the pure-Python server (and the
+s390x LinuxONE box) loads with no native code.
 """
 
 from __future__ import annotations
 
 import gzip
 import json
-from pathlib import Path
 
 import numpy as np
-import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.preprocessing import StandardScaler
 
 from .build import HOLDOUT, OUT, REPLAY_DIR, SCENARIOS, hidx
 from .engine import Engine
-from .features import FEATURES, HORIZON_H
+from .features import FEATURES, HORIZON_H, HORIZONS
 from .model import LogisticModel
 
 # Tiers are alert budgets, not probabilities: a county-hour is "watch" if its risk is in the
@@ -33,7 +32,7 @@ from .model import LogisticModel
 # Thresholds come from the training data only, never tuned on the storms.
 TIER_QUANTILES = {"watch": 0.97, "prepare": 0.99, "act": 0.997}
 TRAIN_END = "2022-12-01 00:00"
-SEED = 0
+TIER_NAMES = ("watch", "prepare", "act")
 
 
 def weighted_quantile(v: np.ndarray, w: np.ndarray, q: float) -> float:
@@ -42,25 +41,38 @@ def weighted_quantile(v: np.ndarray, w: np.ndarray, q: float) -> float:
     return float(v[order][np.searchsorted(cum, q * cum[-1])])
 
 
-def fit(X: np.ndarray, y: np.ndarray, w: np.ndarray, name: str) -> LogisticModel:
+def fit(d: dict[str, np.ndarray], mask: np.ndarray, name: str) -> LogisticModel:
+    X, w = d["X"][mask], d["w"][mask]
+    # Clamp inputs to the training range (0.1th to 99.9th percentile) before anything else.
+    lo = np.percentile(X, 0.1, axis=0)
+    hi = np.percentile(X, 99.9, axis=0)
+    X = np.clip(X, lo, hi)
     scaler = StandardScaler().fit(X)
-    clf = LogisticRegression(C=0.5, max_iter=1000, solver="lbfgs")
-    clf.fit(scaler.transform(X), y, sample_weight=w)
-    p_train = clf.predict_proba(scaler.transform(X))[:, 1]
-    tiers = {k: round(weighted_quantile(p_train, w, q), 5) for k, q in TIER_QUANTILES.items()}
+    Z = scaler.transform(X)
+    heads, p_lead = {}, None
+    for hz in HORIZONS:
+        clf = LogisticRegression(C=0.5, max_iter=1000, solver="lbfgs")
+        clf.fit(Z, d[f"y{hz}"][mask], sample_weight=w)
+        heads[hz] = ([float(v) for v in clf.coef_[0]], float(clf.intercept_[0]))
+        if hz == HORIZON_H:
+            p_lead = clf.predict_proba(Z)[:, 1]
+    tiers = {k: round(weighted_quantile(p_lead, w, q), 5) for k, q in TIER_QUANTILES.items()}
     return LogisticModel(
         name=name,
-        weights=[float(v) for v in clf.coef_[0]],
-        bias=float(clf.intercept_[0]),
         mean=[float(v) for v in scaler.mean_],
         std=[float(max(v, 1e-6)) for v in scaler.scale_],
+        heads=heads,
         tiers=tiers,
+        lo=[float(v) for v in lo],
+        hi=[float(v) for v in hi],
     )
 
 
-def predict(model: LogisticModel, X: np.ndarray) -> np.ndarray:
+def predict(model: LogisticModel, X: np.ndarray, horizon: int = HORIZON_H) -> np.ndarray:
+    w, b = model.heads[horizon]
+    X = np.clip(X, np.array(model.lo, dtype=np.float32), np.array(model.hi, dtype=np.float32))
     z = (X - np.array(model.mean, dtype=np.float32)) / np.array(model.std, dtype=np.float32)
-    return 1.0 / (1.0 + np.exp(-(z @ np.array(model.weights, dtype=np.float32) + model.bias)))
+    return 1.0 / (1.0 + np.exp(-(z @ np.array(w, dtype=np.float32) + b)))
 
 
 def score_set(model: LogisticModel, X, y, w) -> dict:
@@ -93,6 +105,40 @@ def score_set(model: LogisticModel, X, y, w) -> dict:
     }
 
 
+def horizon_table(model: LogisticModel, d: dict, mask: np.ndarray) -> dict:
+    """ROC AUC of each horizon head on a test slice."""
+    out = {}
+    for hz in HORIZONS:
+        y = d[f"y{hz}"][mask]
+        if y.sum() == 0:
+            continue
+        p = predict(model, d["X"][mask], hz)
+        out[str(hz)] = round(float(roc_auc_score(y, p, sample_weight=d["w"][mask])), 3)
+    return out
+
+
+def tier_stats(model: LogisticModel, d: dict, mask: np.ndarray) -> dict:
+    """How often counties at or above each tier really went severe within 24 h, pooled over the
+    out-of-sample storms. This is the confidence figure shown next to every recommendation."""
+    y, w = d["y"][mask], d["w"][mask]
+    p = predict(model, d["X"][mask])
+    base = float((w * y).sum() / w.sum())
+    pos = float((w * y).sum())
+    out = {"base_rate": round(base, 5)}
+    for t in TIER_NAMES:
+        sel = p >= model.tiers[t]
+        hit = float((w * (sel & (y == 1))).sum())
+        n = float((w * sel).sum())
+        prec = hit / max(n, 1e-9)
+        out[t] = {
+            "precision": round(prec, 4),
+            "recall": round(hit / max(pos, 1e-9), 4),
+            "lift": round(prec / max(base, 1e-9), 1),
+            "share_of_county_hours": round(n / float(w.sum()), 4),
+        }
+    return out
+
+
 def replay_scorecards(model: LogisticModel) -> dict:
     out = {}
     for key in SCENARIOS:
@@ -102,9 +148,10 @@ def replay_scorecards(model: LogisticModel) -> dict:
         with gzip.open(path, "rt", encoding="utf-8") as fh:
             bundle = json.load(fh)
         engine = Engine(model, bundle["counties"])
+        res = None
         for h, hour in enumerate(bundle["hours"]):
             res = engine.score_hour(h, hour)
-        out[key] = res["scorecard"]
+        out[key] = res["describe"]["scorecard"]
     return out
 
 
@@ -141,42 +188,52 @@ def ranking_lift(model: LogisticModel, k: int = 10) -> dict:
 
 
 def main() -> None:
-    d = np.load(OUT / "train.npz")
-    X, y, w, h = d["X"], d["y"], d["w"], d["h"]
-    print(f"rows {len(y):,}  positives {int(y.sum()):,}  features {len(FEATURES)}", flush=True)
+    d = dict(np.load(OUT / "train.npz"))
+    h = d["h"]
+    print(f"rows {len(d['y']):,}  positives {int(d['y'].sum()):,}  features {len(FEATURES)}", flush=True)
 
-    ho_a, ho_b = hidx(HOLDOUT[0]), hidx(HOLDOUT[1])
-    in_holdout = (h >= ho_a) & (h <= ho_b)
+    in_holdout = (h >= hidx(HOLDOUT[0])) & (h <= hidx(HOLDOUT[1]))
     train_mask = (h < hidx(TRAIN_END)) & ~in_holdout
-    honest = fit(X[train_mask], y[train_mask], w[train_mask], "honest")
-    print(f"honest model: {int(train_mask.sum()):,} training rows", flush=True)
+    honest = fit(d, train_mask, "honest")
+    print(f"honest model: {int(train_mask.sum()):,} training rows, tiers {honest.tiers}", flush=True)
 
-    metrics = {"train_rows": int(train_mask.sum()), "train_end": TRAIN_END, "holdout": HOLDOUT, "sets": {}}
+    test_all = np.zeros(len(h), dtype=bool)
+    metrics = {
+        "train_rows": int(train_mask.sum()),
+        "train_end": TRAIN_END,
+        "holdout": HOLDOUT,
+        "horizons": list(HORIZONS),
+        "horizon_h": HORIZON_H,
+        "sets": {},
+        "horizon_auc": {},
+    }
     for key, (title, a, b) in SCENARIOS.items():
         m = (h >= hidx(a)) & (h <= hidx(b))
-        if m.any() and y[m].sum() > 0:
-            metrics["sets"][key] = score_set(honest, X[m], y[m], w[m])
+        test_all |= m
+        if m.any() and d["y"][m].sum() > 0:
+            metrics["sets"][key] = score_set(honest, d["X"][m], d["y"][m], d["w"][m])
+            metrics["horizon_auc"][key] = horizon_table(honest, d, m)
     m = h >= hidx(TRAIN_END)
-    metrics["sets"]["all_after_training"] = score_set(honest, X[m], y[m], w[m])
+    metrics["sets"]["all_after_training"] = score_set(honest, d["X"][m], d["y"][m], d["w"][m])
+    metrics["tier_stats"] = tier_stats(honest, d, test_all)
     metrics["scenarios"] = replay_scorecards(honest)
     metrics["ranking"] = ranking_lift(honest)
-    metrics["horizon_h"] = HORIZON_H
-    coef = sorted(zip(FEATURES, honest.weights), key=lambda fw: abs(fw[1]), reverse=True)
+    coef = sorted(zip(FEATURES, honest.heads[HORIZON_H][0]), key=lambda fw: abs(fw[1]), reverse=True)
     metrics["top_weights"] = [{"feature": f, "weight": round(v, 3)} for f, v in coef[:10]]
     honest.metrics = metrics
     honest.save()
 
-    final = fit(X, y, w, "final")
+    final = fit(d, np.ones(len(h), dtype=bool), "final")
     final.metrics = {
-        "train_rows": int(len(y)),
+        "train_rows": int(len(h)),
+        "horizons": list(HORIZONS),
+        "horizon_h": HORIZON_H,
         "note": "trained on every year including Uri; use the honest model for out-of-sample claims",
     }
     final.metrics["scenarios"] = replay_scorecards(final)
     final.save()
 
-    print(json.dumps({k: v for k, v in metrics.items() if k != "sets"}, indent=1))
-    for k, v in metrics["sets"].items():
-        print(k, {a: b for a, b in v.items() if a != "calibration"})
+    print(json.dumps({k: v for k, v in metrics.items() if k not in ("sets",)}, indent=1))
     print("done", flush=True)
 
 

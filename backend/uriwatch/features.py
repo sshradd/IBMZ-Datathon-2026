@@ -52,7 +52,23 @@ GRID_FEATURES = {
     "state_sev_frac", "state_sev_trend_3h", "state_cold_deg",
 }
 
-HORIZON_H = 24  # label: a severe outage starts within the next 24 hours
+HORIZON_H = 24  # the headline label: a severe outage starts within the next 24 hours
+HORIZONS = (6, 12, 24)  # one model head per horizon, so we can say not just whether but roughly when
+
+# Where a score comes from, for the diagnostic views. Contributions are summed per group.
+GROUPS = {
+    "momentum": ("Outage momentum", ["log_out_now", "out_trend_1h", "out_trend_3h", "log_out_max6h"]),
+    "weather": (
+        "Local weather",
+        ["temp_c", "apparent_c", "cold_deg", "heat_deg", "temp_drop_24h", "temp_change_3h",
+         "wind_kmh", "precip_6h", "snow_6h", "ice_index", "humidity"],
+    ),
+    "grid": ("Grid stress", ["grid_fc_err", "grid_demand_norm", "grid_gen_drop_24h", "grid_wind_share"]),
+    "spread": ("Statewide spread", ["state_sev_frac", "state_sev_trend_3h", "state_cold_deg"]),
+    "profile": ("County profile", ["log_pop", "hour_sin", "hour_cos"]),
+}
+GROUP_ORDER = list(GROUPS)
+FEATURE_GROUP = {f: g for g, (_, fs) in GROUPS.items() for f in fs}
 SEVERE_MIN_CUSTOMERS = 2500
 SEVERE_FRACTION = 0.10  # or 10% of the county's customers, whichever is larger
 PEOPLE_PER_CUSTOMER = 2.6

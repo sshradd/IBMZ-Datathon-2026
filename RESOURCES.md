@@ -62,7 +62,7 @@ Exact versions: `web/package-lock.json`.
 ## Patterns borrowed (no code)
 
 - Vite + React + `vite-plugin-pwa` setup and pinned `requirements.txt` / non-root `python:3.12-slim` Dockerfile conventions the team already knew. All code in this repo was written during the event.
-- **Visual style** (storm-night navy, frosted panels, lightning yellow, electric cyan and hot pink, mono uppercase labels, hairline borders, two themes) is original to this project. Every stylesheet and component in `web/src` was written during the event.
+- **Design reference.** The layout and information hierarchy (a one-sentence situation brief, KPI cards, numbered recommendations with the action, projected impact and confidence, "it suggests, you decide") follow the team's earlier product dashboards. Design ideas only: no stylesheet, component or other file was copied from any earlier project. Every line of CSS and TSX in `web/src` was written during the event, including the palette (storm-night navy, lightning yellow, ice blue, hot pink).
 
 ## AI assistance
 
