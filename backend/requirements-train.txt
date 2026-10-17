@@ -1,0 +1,5 @@
+# Only for rebuilding the models and replays on a laptop (uriwatch.build / uriwatch.train).
+-r requirements.txt
+numpy>=2.1
+pandas>=2.2
+scikit-learn>=1.6

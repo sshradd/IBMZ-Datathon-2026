@@ -1,0 +1,433 @@
+{
+ "name": "honest",
+ "features": [
+  "log_out_now",
+  "out_trend_1h",
+  "out_trend_3h",
+  "log_out_max6h",
+  "temp_c",
+  "apparent_c",
+  "cold_deg",
+  "heat_deg",
+  "temp_drop_24h",
+  "temp_change_3h",
+  "wind_kmh",
+  "precip_6h",
+  "snow_6h",
+  "ice_index",
+  "humidity",
+  "grid_fc_err",
+  "grid_demand_norm",
+  "grid_gen_drop_24h",
+  "grid_wind_share",
+  "state_sev_frac",
+  "state_sev_trend_3h",
+  "state_cold_deg",
+  "log_pop",
+  "hour_sin",
+  "hour_cos"
+ ],
+ "weights": [
+  0.11000837554070007,
+  0.03147410596695833,
+  -0.008882694742601843,
+  0.2789765333588674,
+  0.1642869123603514,
+  0.2903350638333774,
+  0.09642632608056617,
+  0.007939335582095539,
+  0.020980282335481576,
+  0.022319080197130317,
+  0.09342575410089468,
+  0.05917974750549393,
+  0.03000241478993322,
+  0.01599599325492579,
+  0.5194965558868485,
+  0.029604455191531348,
+  0.17560192484097478,
+  -0.06910590214828292,
+  0.18447195441239697,
+  0.08037121282248427,
+  0.013310354008342315,
+  0.011270488658192612,
+  0.04582435589485684,
+  0.0023928680858892014,
+  -0.01160018084250669
+ ],
+ "bias": -6.152168759267338,
+ "mean": [
+  0.7544563516729867,
+  0.0018363139195831238,
+  0.003841832850063315,
+  1.3070984605757971,
+  20.0838046185315,
+  19.163069858326146,
+  0.20172395989230008,
+  0.029556668921638593,
+  0.0037815652070852784,
+  4.2287174679751854e-05,
+  15.256511769469151,
+  0.6965799448685526,
+  0.005219444569324597,
+  0.010536677840842971,
+  61.460780583705194,
+  -0.0012305520890490752,
+  0.0015094464614480402,
+  -0.17478042899783755,
+  0.244968953631257,
+  0.000715041057455494,
+  7.110764198252574e-06,
+  0.18665396081028687,
+  9.920429645277991,
+  0.0007066536897432981,
+  -0.0005206132989403629
+ ],
+ "std": [
+  1.4790727765057936,
+  0.8067928681906977,
+  1.2203687512302397,
+  1.8604299613611657,
+  9.254099364070944,
+  11.595356611241694,
+  1.0774113252763278,
+  0.2784519786859576,
+  4.0658860004634,
+  3.1687597070994307,
+  7.55210560156826,
+  3.1133071814439597,
+  0.12338432861091238,
+  0.2549664212384675,
+  23.328887305546605,
+  0.031750955067786926,
+  0.15711622318653654,
+  0.12180585858781949,
+  0.14363890095223203,
+  0.0031944990114122817,
+  0.0020464645459618643,
+  0.7030052291298967,
+  1.7794241974347016,
+  0.7071846391102979,
+  0.707028353148805
+ ],
+ "tiers": {
+  "watch": 0.01097,
+  "prepare": 0.01682,
+  "act": 0.02511
+ },
+ "metrics": {
+  "train_rows": 707035,
+  "train_end": "2022-12-01 00:00",
+  "holdout": [
+   "2021-02-01 00:00",
+   "2021-02-28 23:00"
+  ],
+  "sets": {
+   "uri": {
+    "rows": 95642,
+    "positives": 4631,
+    "roc_auc": 0.8125,
+    "avg_precision": 0.1711,
+    "watch_precision": 0.1526,
+    "watch_recall": 0.6051,
+    "base_rate": 0.04842,
+    "calibration": [
+     {
+      "bin": "0.00-0.02",
+      "predicted": 0.0032,
+      "observed": 0.0295,
+      "rows": 80747
+     },
+     {
+      "bin": "0.02-0.05",
+      "predicted": 0.0313,
+      "observed": 0.2237,
+      "rows": 2338
+     },
+     {
+      "bin": "0.05-0.10",
+      "predicted": 0.0701,
+      "observed": 0.1916,
+      "rows": 950
+     },
+     {
+      "bin": "0.10-0.20",
+      "predicted": 0.1407,
+      "observed": 0.0669,
+      "rows": 553
+     },
+     {
+      "bin": "0.20-0.30",
+      "predicted": 0.2518,
+      "observed": 0.0251,
+      "rows": 199
+     },
+     {
+      "bin": "0.30-0.60",
+      "predicted": 0.4428,
+      "observed": 0.0092,
+      "rows": 760
+     },
+     {
+      "bin": "0.60-1.00",
+      "predicted": 0.9537,
+      "observed": 0.1483,
+      "rows": 10095
+     }
+    ]
+   },
+   "elliott": {
+    "rows": 54810,
+    "positives": 334,
+    "roc_auc": 0.8606,
+    "avg_precision": 0.0364,
+    "watch_precision": 0.0741,
+    "watch_recall": 0.1916,
+    "base_rate": 0.00609,
+    "calibration": [
+     {
+      "bin": "0.00-0.02",
+      "predicted": 0.0019,
+      "observed": 0.006,
+      "rows": 54703
+     },
+     {
+      "bin": "0.02-0.05",
+      "predicted": 0.0241,
+      "observed": 0.0472,
+      "rows": 106
+     },
+     {
+      "bin": "0.05-0.10",
+      "predicted": 0.0542,
+      "observed": 0.0,
+      "rows": 1
+     }
+    ]
+   },
+   "ice2023": {
+    "rows": 47818,
+    "positives": 723,
+    "roc_auc": 0.8192,
+    "avg_precision": 0.0738,
+    "watch_precision": 0.0701,
+    "watch_recall": 0.4965,
+    "base_rate": 0.01512,
+    "calibration": [
+     {
+      "bin": "0.00-0.02",
+      "predicted": 0.0039,
+      "observed": 0.0113,
+      "rows": 45737
+     },
+     {
+      "bin": "0.02-0.05",
+      "predicted": 0.0305,
+      "observed": 0.09,
+      "rows": 1678
+     },
+     {
+      "bin": "0.05-0.10",
+      "predicted": 0.0625,
+      "observed": 0.1156,
+      "rows": 346
+     },
+     {
+      "bin": "0.10-0.20",
+      "predicted": 0.1379,
+      "observed": 0.2407,
+      "rows": 54
+     },
+     {
+      "bin": "0.20-0.30",
+      "predicted": 0.2194,
+      "observed": 0.0,
+      "rows": 3
+     }
+    ]
+   },
+   "heat2023": {
+    "rows": 85274,
+    "positives": 391,
+    "roc_auc": 0.713,
+    "avg_precision": 0.0104,
+    "watch_precision": 0.0113,
+    "watch_recall": 0.0409,
+    "base_rate": 0.00459,
+    "calibration": [
+     {
+      "bin": "0.00-0.02",
+      "predicted": 0.0025,
+      "observed": 0.0046,
+      "rows": 85033
+     },
+     {
+      "bin": "0.02-0.05",
+      "predicted": 0.0285,
+      "observed": 0.0099,
+      "rows": 202
+     },
+     {
+      "bin": "0.05-0.10",
+      "predicted": 0.0662,
+      "observed": 0.0263,
+      "rows": 38
+     },
+     {
+      "bin": "0.10-0.20",
+      "predicted": 0.1116,
+      "observed": 0.0,
+      "rows": 1
+     }
+    ]
+   },
+   "all_after_training": {
+    "rows": 374019,
+    "positives": 10629,
+    "roc_auc": 0.7622,
+    "avg_precision": 0.0167,
+    "watch_precision": 0.0234,
+    "watch_recall": 0.2079,
+    "base_rate": 0.00441,
+    "calibration": [
+     {
+      "bin": "0.00-0.02",
+      "predicted": 0.0029,
+      "observed": 0.0041,
+      "rows": 369231
+     },
+     {
+      "bin": "0.02-0.05",
+      "predicted": 0.0283,
+      "observed": 0.0324,
+      "rows": 4043
+     },
+     {
+      "bin": "0.05-0.10",
+      "predicted": 0.065,
+      "observed": 0.0423,
+      "rows": 640
+     },
+     {
+      "bin": "0.10-0.20",
+      "predicted": 0.1355,
+      "observed": 0.0576,
+      "rows": 101
+     },
+     {
+      "bin": "0.20-0.30",
+      "predicted": 0.2185,
+      "observed": 0.25,
+      "rows": 4
+     }
+    ]
+   }
+  },
+  "scenarios": {
+   "uri": {
+    "onsets": 396,
+    "warned": 386,
+    "warned_pct": 97.5,
+    "median_lead_h": 4.0,
+    "max_lead_h": 25,
+    "false_alerts": 906,
+    "alert_hours": 26150
+   },
+   "elliott": {
+    "onsets": 15,
+    "warned": 12,
+    "warned_pct": 80.0,
+    "median_lead_h": 8.5,
+    "max_lead_h": 20,
+    "false_alerts": 106,
+    "alert_hours": 910
+   },
+   "ice2023": {
+    "onsets": 36,
+    "warned": 35,
+    "warned_pct": 97.2,
+    "median_lead_h": 9,
+    "max_lead_h": 25,
+    "false_alerts": 374,
+    "alert_hours": 6013
+   },
+   "heat2023": {
+    "onsets": 17,
+    "warned": 7,
+    "warned_pct": 41.2,
+    "median_lead_h": 2,
+    "max_lead_h": 16,
+    "false_alerts": 228,
+    "alert_hours": 1483
+   }
+  },
+  "ranking": {
+   "uri": {
+    "top_k": 10,
+    "precision": 0.124,
+    "random": 0.055,
+    "lift": 2.3
+   },
+   "elliott": {
+    "top_k": 10,
+    "precision": 0.006,
+    "random": 0.006,
+    "lift": 0.9
+   },
+   "ice2023": {
+    "top_k": 10,
+    "precision": 0.132,
+    "random": 0.015,
+    "lift": 8.7
+   },
+   "heat2023": {
+    "top_k": 10,
+    "precision": 0.009,
+    "random": 0.005,
+    "lift": 1.9
+   }
+  },
+  "horizon_h": 24,
+  "top_weights": [
+   {
+    "feature": "humidity",
+    "weight": 0.519
+   },
+   {
+    "feature": "apparent_c",
+    "weight": 0.29
+   },
+   {
+    "feature": "log_out_max6h",
+    "weight": 0.279
+   },
+   {
+    "feature": "grid_wind_share",
+    "weight": 0.184
+   },
+   {
+    "feature": "grid_demand_norm",
+    "weight": 0.176
+   },
+   {
+    "feature": "temp_c",
+    "weight": 0.164
+   },
+   {
+    "feature": "log_out_now",
+    "weight": 0.11
+   },
+   {
+    "feature": "cold_deg",
+    "weight": 0.096
+   },
+   {
+    "feature": "wind_kmh",
+    "weight": 0.093
+   },
+   {
+    "feature": "state_sev_frac",
+    "weight": 0.08
+   }
+  ]
+ }
+}

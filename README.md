@@ -1,8 +1,10 @@
-# Scam Stopper
+# Uri Watch
 
-IBM Z Datathon 2026 · Theme 1: Real-Time AI for Critical Decisions
+IBM Z Datathon 2026 · Theme 1: Real-Time AI for Critical Decisions (Predictive Outage Early Warning + Emergency Resource Prioritization)
 
-Scam victims, often seniors, are tricked into sending irreversible instant payments, and the money lands in mule accounts. Scam Stopper scores every payment **before it settles**, from both ends (the sender's behavior and the receiver's mule-ring signals), in well under a millisecond, and explains every hold in plain English. It runs on IBM LinuxONE.
+When the Texas grid is stressed, which counties lose power next, and who needs help first? Uri Watch scores all 254 Texas counties every hour, warns before severe outages start, explains every score in plain English, and ranks the counties that need crews, warming centers and phone calls first, weighting by the seniors who live there. It runs on IBM LinuxONE.
+
+The demo replays real storms from real data. The headline test is **Winter Storm Uri (Feb 2021), which the model never saw in training.**
 
 ## Run it
 
@@ -10,30 +12,28 @@ Scam victims, often seniors, are tricked into sending irreversible instant payme
 ./run.sh
 ```
 
-Open http://127.0.0.1:8000 and press **Start stream**.
+Open http://127.0.0.1:8000, pick a storm, press **Start replay**.
 
-`run.sh` creates a Python virtualenv, installs three pinned packages, trains the model if `backend/model.json` is missing, builds the PWA if `web/dist` is missing and `npm` exists, then serves the API and dashboard on one port.
+`run.sh` creates a Python virtualenv, installs three pinned packages, builds the web app if `web/dist` is missing and `npm` exists, then serves the API and dashboard on one port. Models and storm replays are committed, so nothing is trained or downloaded at run time.
 
-Requirements: Python 3.10+ (3.12 tested). Node 20+ only for building the PWA.
+Requirements: Python 3.10+ (3.12 tested). Node 20+ only for building the web app.
 
 ## Run it on LinuxONE (s390x)
 
-1. `web/dist` (the built PWA) is committed, so the server needs no Node. After UI changes, rebuild on a laptop (`cd web && npm run build`) and commit `web/dist`.
-2. Get the code onto the server: `git clone <repo-url>`, or `rsync -av --exclude .venv --exclude web/node_modules ./ user@<server>:scam-stopper/`
-3. On the server: `cd scam-stopper && ./run.sh`
+1. `web/dist` is committed, so the server needs no Node. After UI changes, rebuild on a laptop (`cd web && npm run build`) and commit `web/dist`.
+2. Get the code onto the server: `git clone <repo-url>` (or `rsync -av --exclude .venv --exclude web/node_modules --exclude data/raw ./ user@<server>:uri-watch/`).
+3. On the server: `cd uri-watch && ./run.sh`
 4. On the laptop: `ssh -L 8000:localhost:8000 user@<server>` and open http://localhost:8000.
 
-The header badge says **Running on IBM LinuxONE · s390x** when it is.
+The header badge says **IBM LinuxONE · s390x** when it is.
 
-The server binds to `127.0.0.1` by default. Use the SSH tunnel rather than opening the port. Set `HOST=0.0.0.0` only if you mean to expose it.
-
-**Why it is easy to port:** the scorer is pure Python (no numpy or scikit-learn), and model weights are stored as JSON, so there are no native wheels to find for s390x and no big-endian surprises. The only compiled dependency is `pydantic-core`.
+**Why it ports cleanly:** training happens on a laptop with scikit-learn, but the server is pure Python. The model is a handful of numbers in JSON (no byte-order issues on big-endian Z) and the storm replays are gzip JSON. The only compiled dependency is `pydantic-core`.
 
 ### Container (optional)
 
 ```bash
-docker build -t scam-stopper .
-docker run --rm -p 127.0.0.1:8000:8000 scam-stopper
+docker build -t uri-watch .
+docker run --rm -p 127.0.0.1:8000:8000 uri-watch
 ```
 
 `python:3.12-slim` is multi-arch, so the same Dockerfile builds on s390x. Build `web/dist` first.
@@ -41,54 +41,93 @@ docker run --rm -p 127.0.0.1:8000:8000 scam-stopper
 ## Benchmark
 
 ```bash
-.venv/bin/python bench/run.py engine --n 100000            # one core
-.venv/bin/python bench/run.py engine --n 400000 --procs 4  # four cores
-.venv/bin/python bench/run.py http --n 5000 --concurrency 32   # through the API (server running)
+.venv/bin/python bench/run.py engine --hours 408            # one core
+.venv/bin/python bench/run.py engine --hours 408 --procs 8  # one copy per core
 ```
 
-Results land in `bench/results/` and appear on the dashboard's **Benchmark** tab. Run the same commands on a laptop and on LinuxONE and compare.
+Each pass scores every county for every hour of the Uri replay (254 counties x 408 hours = 103,632 scores) through the full engine: risk, tier, ranking and plain-English reasons. Results land in `bench/results/` and appear on the dashboard's **Benchmark** tab. Run the same commands on a laptop and on LinuxONE and compare. Latency percentiles are per-county averages over each hourly batch, not individually timed scores.
 
-Laptop baseline (x86_64 MacBook, Python 3.12): about 17k payments/sec on one process with p99 latency 0.31 ms, and about 67k/sec on four processes.
+Laptop baseline (x86_64 MacBook, 8 cores, Python 3.12): about 165k county scores per second on one core and about 690k per second with 8 processes.
+
+The honest framing for Z: scoring is a small job, so a laptop core is fast too. The argument for LinuxONE is sustained throughput under surge (a storm hits every county in the same hours), isolation, availability, and security for utility data, not raw speed on a tiny model.
+
+## The data
+
+All public, no logins. Fetched by `scripts/fetch_data.py` (about 605 MB of Texas rows kept; EAGLE-I is streamed and filtered while downloading).
+
+| Source | Used for |
+|---|---|
+| DOE EAGLE-I recorded outages, 2019-2023, 15-minute, per county | What actually happened (labels) and outages so far (features) |
+| EIA-930 hourly ERCOT grid data | Demand, ERCOT's own demand forecast, generation, wind |
+| Open-Meteo historical weather, 12 Texas stations | Temperature, ice and snow, wind |
+| Census gazetteer and population estimates | County locations, population, residents 65+ |
+
+About 11 million Texas county-hours; the training set keeps every severe-outage hour and a weighted sample of the rest (1.18 million rows, 41,412 positive).
 
 ## How it works
 
 | Piece | File |
 |---|---|
-| Synthetic payment stream with injected scams (gift card, large new payee, rapid repeats, mule fan-in, cash-out) | `backend/scamstopper/sim.py` |
-| Streaming features from what the bank knew *before* each payment | `backend/scamstopper/features.py` |
-| Transparent logistic regression, pure Python, JSON weights | `backend/scamstopper/model.py` |
-| Decision (allow / verify / hold), plain-English reasons, mule-ring tracker, live stats | `backend/scamstopper/engine.py` |
-| API + Server-Sent Events stream | `backend/scamstopper/api.py` |
-| Training and held-out evaluation | `backend/scamstopper/train.py` |
-| PWA: Ops console, Guardian (senior's phone view), Benchmark | `web/src/` |
+| Fetch and filter the public data | `scripts/fetch_data.py` |
+| Align everything to one hourly clock, build features and labels, write storm replays | `backend/uriwatch/build.py` |
+| The feature list and plain-English reasons | `backend/uriwatch/features.py` |
+| Train two models (laptop only) | `backend/uriwatch/train.py` |
+| Pure-Python scorer, JSON weights | `backend/uriwatch/model.py` |
+| Tiers, reasons, priority ranking, live scorecard | `backend/uriwatch/engine.py` |
+| Replay sessions | `backend/uriwatch/replay.py` |
+| API + Server-Sent Events | `backend/uriwatch/api.py` |
+| Web app: storm replay map, "Who first", model facts, benchmark | `web/src/` |
 
-**Policy:** customers 65+ get stronger protection. Medium-risk payments are held for them, not just sent to verification.
+**The prediction:** will this county cross a severe line (at least 10% of its customers and at least 2,500 customers without power) within 24 hours, given what is known right now? The model only predicts onset: counties already in severe outage are excluded from the score.
 
-**Model quality** (held-out simulated stream, different seed): precision ≈ 0.92, recall ≈ 0.86, false-positive rate ≈ 0.7%. Run `python -m scamstopper.train` in `backend/` to reproduce. Thresholds are in `engine.py`.
+**Two models.** `honest` trains only on data before Dec 2022 with Feb 2021 removed, so Winter Storm Uri, Elliott, the Feb 2023 ice storm and the Aug 2023 heat dome are all out-of-sample. `final` trains on everything. The dashboard defaults to honest and says so on screen.
 
-**Honest limits:** all data is synthetic, so real-world accuracy would be lower. Cash-outs from mule accounts are the weakest scenario (recall ≈ 0.44).
+**Alert tiers** are budgets set from training data only: watch = top 3% of county-hours by risk, prepare = top 1%, act = top 0.3%. They are not tuned on the storms.
+
+### Out-of-sample results (honest model)
+
+| Storm | Severe county outages | Had an alert first | Median lead | Best lead | False alerts | Top-10 lift |
+|---|---|---|---|---|---|---|
+| Winter Storm Uri (Feb 2021) | 396 | 386 (97.5%) | 4 h | 25 h | 906 | 2.3x |
+| Winter Storm Elliott (Dec 2022) | 15 | 12 (80%) | 8.5 h | 20 h | 106 | 0.9x |
+| Feb 2023 ice storm | 36 | 35 (97.2%) | 9 h | 25 h | 374 | 8.7x |
+| Aug 2023 heat dome | 17 | 7 (41%) | 2 h | 16 h | 228 | 1.9x |
+
+Reproduce: `cd backend && python -m uriwatch.train` (needs `requirements-train.txt` and the data).
+
+**Honest limits:**
+- Alerts are broad. On Uri about a quarter of all county-hours were on watch, and there were 906 alert episodes with no severe outage after. This is a ranking and triage tool, not a replacement for an emergency manager.
+- The heat dome is the weak case: heat-driven outages look different from winter storms and the model catches fewer than half. On Elliott the top-10 ranking is no better than random.
+- Median lead on Uri is only 4 hours because most Texas counties lost power within hours of ERCOT's load shed. Ice storms give longer warning.
+- It does not forecast weather. A real system would add NWS forecasts and radar. Weather comes from 12 stations, so a county can be far from its station.
+- Senior counts come from Census population estimates. We have no access to medical-need registries.
+- EAGLE-I counts only outages utilities reported to the public map, and the 2023 file renames the count column (handled in `build.py`).
 
 ## API
 
 | Method | Path | What |
 |---|---|---|
-| POST | `/api/score` | Score one payment, returns decision + reasons |
-| GET | `/api/events` | SSE stream of scored payments |
-| GET | `/api/stats` | Counts, money stopped, precision, recall, latency, TPS |
-| GET | `/api/graph` | Candidate mule rings |
+| GET | `/api/scenarios`, `/api/counties?scenario=` | Storm list, county list |
+| POST | `/api/replay/start` | `{"scenario": "uri", "model": "honest", "speed": 12}` (hours per second) |
+| POST | `/api/replay/pause`, `/resume`, `/speed`, `/seek` | Control the replay |
+| GET | `/api/events` | SSE stream of scored hours |
+| GET | `/api/explain/{fips}` | Why the current score for one county |
+| GET | `/api/models` | Both models' tiers and out-of-sample metrics |
 | GET | `/api/system` | Machine, CPU count, byte order (evidence for judges) |
-| POST | `/api/sim/start` | `{"speed": 20, "fraud_rate": 0.02}` |
-| POST | `/api/sim/stop`, `/api/sim/reset` | |
 | GET | `/api/bench` | Saved benchmark results |
 
 ## Tests
 
 ```bash
-cd backend && ../.venv/bin/python -m pytest -q
+cd backend && ../.venv/bin/python -m pytest -q tests
 ```
 
-## Dev mode
+## Rebuild the data and models (laptop)
 
-Run `./run.sh` for the API, then `cd web && npm run dev` for hot reload at http://localhost:5173 (it proxies `/api`).
+```bash
+pip install -r backend/requirements-train.txt
+python scripts/fetch_data.py all && python scripts/fetch_data.py age
+cd backend && python -m uriwatch.build && python -m uriwatch.train
+```
 
-After rebuilding the PWA, reload twice or hard-refresh: the service worker serves the previous build once, then updates.
+After rebuilding the web app, hard-refresh once: the service worker serves the previous build first.

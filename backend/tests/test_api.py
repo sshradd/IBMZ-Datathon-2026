@@ -1,30 +1,42 @@
+import time
+
+import pytest
 from fastapi.testclient import TestClient
 
-from scamstopper.api import app
+from uriwatch.api import app
 
 
-def test_score_stats_and_system():
-    with TestClient(app) as client:
-        assert client.get("/api/healthz").json() == {"ok": True}
-        assert client.get("/api/system").json()["machine"]
-
-        r = client.post("/api/score", json={
-            "id": "t1", "ts": 30000, "sender_id": "u00001", "receiver_id": "x777",
-            "amount": 2500, "memo": "urgent verify account", "sender_age_band": "65+",
-            "receiver_account_age_days": 4,
-        })
-        assert r.status_code == 200
-        d = r.json()
-        assert d["action"] in {"hold", "step_up"}
-        assert d["reasons"]
-
-        s = client.get("/api/stats").json()
-        assert s["processed"] == 1
-        assert "precision" in s["model"]
+@pytest.fixture()
+def client():
+    with TestClient(app) as c:
+        yield c
 
 
-def test_rejects_bad_amount():
-    with TestClient(app) as client:
-        r = client.post("/api/score", json={"id": "t", "ts": 1, "sender_id": "a",
-                                            "receiver_id": "b", "amount": -5})
-        assert r.status_code == 422
+def test_health_and_system(client):
+    assert client.get("/api/healthz").json() == {"ok": True}
+    s = client.get("/api/system").json()
+    assert {"machine", "byteorder", "is_ibm_z"} <= set(s)
+
+
+def test_scenarios_and_counties(client):
+    sc = client.get("/api/scenarios").json()
+    assert {s["key"] for s in sc} >= {"uri", "elliott"}
+    cs = client.get("/api/counties?scenario=uri").json()
+    assert len(cs) == 254 and {"fips", "lat", "lon", "pop65", "severe_at"} <= set(cs[0])
+    assert client.get("/api/counties?scenario=nope").status_code == 404
+
+
+def test_models_endpoint_has_honest_metrics(client):
+    m = client.get("/api/models").json()
+    assert m["honest"]["metrics"]["scenarios"]["uri"]["onsets"] > 100
+
+
+def test_replay_start_seek_explain(client):
+    r = client.post("/api/replay/start", json={"scenario": "uri", "speed": 5})
+    assert r.status_code == 200 and r.json()["model"] == "honest"
+    client.post("/api/replay/pause")
+    st = client.post("/api/replay/seek", json={"i": 150}).json()
+    assert st["i"] == 150
+    e = client.get("/api/explain/48201")  # Harris County
+    assert e.status_code == 200 and 0 <= e.json()["risk"] <= 1
+    assert client.post("/api/replay/start", json={"scenario": "nope"}).status_code == 404

@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { Cpu, Moon, Sun } from "lucide-react";
-import { useEvents, usePoll, type Stats, type SystemInfo } from "./api";
-import OpsConsole from "./components/OpsConsole";
-import Guardian from "./components/Guardian";
+import { useReplay, usePoll, type SystemInfo } from "./api";
+import LiveView from "./components/LiveView";
+import Outreach from "./components/Outreach";
+import ModelFacts from "./components/ModelFacts";
 import Benchmark from "./components/Benchmark";
 
-type Tab = "ops" | "guardian" | "bench";
+type Tab = "live" | "outreach" | "model" | "bench";
 const TABS: { id: Tab; label: string }[] = [
-  { id: "ops", label: "Ops console" },
-  { id: "guardian", label: "Guardian" },
+  { id: "live", label: "Storm replay" },
+  { id: "outreach", label: "Who first" },
+  { id: "model", label: "The model" },
   { id: "bench", label: "Benchmark" },
 ];
 
@@ -17,7 +19,7 @@ type Theme = "dark" | "light";
 
 function initialTheme(): Theme {
   try {
-    const saved = localStorage.getItem("ss-theme");
+    const saved = localStorage.getItem("uw-theme");
     if (saved === "light" || saved === "dark") return saved;
   } catch {
     /* storage unavailable */
@@ -26,16 +28,15 @@ function initialTheme(): Theme {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("ops");
+  const [tab, setTab] = useState<Tab>("live");
   const [theme, setTheme] = useState<Theme>(initialTheme);
-  const events = useEvents();
-  const stats = usePoll<Stats>("/api/stats", 1000);
+  const replay = useReplay();
   const system = usePoll<SystemInfo>("/api/system", 30000);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     try {
-      localStorage.setItem("ss-theme", theme);
+      localStorage.setItem("uw-theme", theme);
     } catch {
       /* storage unavailable */
     }
@@ -46,8 +47,8 @@ export default function App() {
       <header className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2">
         <Mark />
         <div className="mr-auto">
-          <h1 className="text-[17px] font-semibold tracking-tight">Scam Stopper</h1>
-          <p className="eyebrow mt-0.5">Decide before the money settles</p>
+          <h1 className="text-[17px] font-semibold tracking-tight">Uri Watch</h1>
+          <p className="eyebrow mt-0.5">Which Texas counties lose power next, and who needs help first</p>
         </div>
         {system && (
           <span
@@ -63,10 +64,10 @@ export default function App() {
         )}
         <span className="flex items-center gap-1.5">
           <span
-            className={clsx("h-2 w-2 rounded-full", events.connected ? "bg-gain" : "bg-loss")}
+            className={clsx("h-2 w-2 rounded-full", replay.connected ? "bg-gain" : "bg-loss")}
             aria-hidden
           />
-          <span className="eyebrow">{events.connected ? "live" : "offline"}</span>
+          <span className="eyebrow">{replay.connected ? "live" : "offline"}</span>
         </span>
         <button
           className="btn px-2.5 py-1.5"
@@ -93,8 +94,9 @@ export default function App() {
         ))}
       </nav>
 
-      {tab === "ops" && <OpsConsole events={events} stats={stats} />}
-      {tab === "guardian" && <Guardian alerts={events.alerts} />}
+      {tab === "live" && <LiveView replay={replay} />}
+      {tab === "outreach" && <Outreach latest={replay.latest} state={replay.state} />}
+      {tab === "model" && <ModelFacts />}
       {tab === "bench" && <Benchmark system={system} />}
     </div>
   );
@@ -103,8 +105,7 @@ export default function App() {
 function Mark() {
   return (
     <svg viewBox="0 0 32 32" className="h-8 w-8" aria-hidden>
-      <path d="M16 3 27 7.5V16c0 6.2-4.3 10.6-11 13C9.3 26.6 5 22.200 5 16V7.5z" fill="var(--signal)" />
-      <path d="M11.500 16h9" stroke="var(--bg)" strokeWidth="3" strokeLinecap="round" />
+      <path d="M17.500 3 7 18h7l-2 11L25 13h-7.500z" fill="var(--signal)" />
     </svg>
   );
 }

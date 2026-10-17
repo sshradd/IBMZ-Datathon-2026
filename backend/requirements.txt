@@ -1,5 +1,5 @@
-# Runtime. Exact pins. All pure Python except pydantic-core; no numpy/scikit-learn
-# needed, so nothing to compile on s390x.
+# Runtime. Exact pins. All pure Python except pydantic-core; no numpy or
+# scikit-learn needed, so nothing to compile on s390x.
 fastapi==0.115.5
 uvicorn==0.32.1
 pydantic==2.9.2

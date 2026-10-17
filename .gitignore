@@ -7,3 +7,7 @@ web/tsconfig.tsbuildinfo
 bench/results/*.json
 !bench/results/.gitkeep
 .DS_Store
+
+data/raw/
+data/processed/
+data/*.log

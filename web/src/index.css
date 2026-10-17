@@ -3,39 +3,53 @@
 @import "@fontsource/jetbrains-mono/400.css";
 @import "@fontsource/jetbrains-mono/500.css";
 
-/* Design language: near-black "instrument" look with bone-colored text, one
-   oxblood signal, and muted green and terracotta for good and bad. Written
-   fresh for this project; two themes, dark by default. */
+/* Design language: storm night. Deep navy, electric cyan, lightning yellow and
+   hot pink for outages. Two themes, dark by default. */
 :root {
-  --bg: #0a0a0b;
-  --bg2: #0f0f11;
-  --card: #0d0d0f;
-  --fg: #edece8;
-  --mut: #8f8f89;
-  --line: rgba(237, 236, 232, 0.14);
-  --line-soft: rgba(237, 236, 232, 0.07);
-  --signal: #b0453b;
-  --gain: #5fa382;
-  --loss: #c56a5b;
-  --warn: #c9a04b;
-  --info: #7aa2c9;
-  --grain: 0.05;
+  --bg: #050b17;
+  --bg2: #0a1426;
+  --card: rgba(16, 32, 58, 0.55);
+  --fg: #eaf4ff;
+  --mut: #8fa9c9;
+  --line: rgba(170, 215, 255, 0.20);
+  --line-soft: rgba(170, 215, 255, 0.09);
+  --frost: rgba(220, 240, 255, 0.10);
+  --signal: #ffd23f;
+  --on-signal: #07101f;
+  --gain: #34e0a1;
+  --loss: #ff4d6d;
+  --warn: #facc15;
+  --info: #7dd3fc;
+  /* alert tiers: clear, watch, prepare, act */
+  --t0: color-mix(in srgb, #bcd8f5 30%, transparent);
+  --t1: #7dd3fc;
+  --t2: #facc15;
+  --t3: #ff4d6d;
+  --glow: 0 0 6px;
+  --grain: 0.04;
   color-scheme: dark;
 }
 [data-theme="light"] {
-  --bg: #f8f7f3;
-  --bg2: #f2f2ef;
-  --card: #ffffff;
-  --fg: #111110;
-  --mut: #5c5c57;
-  --line: rgba(17, 17, 16, 0.16);
-  --line-soft: rgba(17, 17, 16, 0.08);
-  --signal: #8e2a22;
-  --gain: #2f6b4f;
-  --loss: #a8453a;
-  --warn: #8a6a1f;
-  --info: #35618f;
-  --grain: 0.035;
+  --bg: #e8f1fb;
+  --bg2: #dde9f6;
+  --card: rgba(255, 255, 255, 0.72);
+  --fg: #0b1a30;
+  --mut: #4b5f7d;
+  --line: rgba(11, 26, 48, 0.16);
+  --line-soft: rgba(11, 26, 48, 0.08);
+  --frost: rgba(255, 255, 255, 0.9);
+  --signal: #a56a00;
+  --on-signal: #ffffff;
+  --gain: #0f8a5f;
+  --loss: #d1264a;
+  --warn: #9a6b00;
+  --info: #0369a1;
+  --t0: color-mix(in srgb, #4b5f7d 28%, transparent);
+  --t1: #0284c7;
+  --t2: #d49a00;
+  --t3: #d1264a;
+  --glow: 0 0 0;
+  --grain: 0.03;
   color-scheme: light;
 }
 
@@ -64,13 +78,59 @@ html {
 }
 body {
   margin: 0;
-  background: var(--bg);
+  background:
+    radial-gradient(900px 420px at 78% -8%, color-mix(in srgb, var(--info) 14%, transparent), transparent 70%),
+    radial-gradient(700px 360px at 8% 0%, color-mix(in srgb, var(--signal) 8%, transparent), transparent 70%),
+    var(--bg);
   color: var(--fg);
   font-family: var(--font-sans);
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   transition: background 0.3s ease, color 0.3s ease;
+}
+/* Frost creeping in from the corners */
+html::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 60% at 50% 120%, color-mix(in srgb, var(--info) 14%, transparent), transparent 60%),
+    radial-gradient(60% 40% at 0% 100%, var(--frost), transparent 70%),
+    radial-gradient(60% 40% at 100% 100%, var(--frost), transparent 70%);
+}
+/* Slow, faint snowfall */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -300px 0 0 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.55;
+  background-image:
+    radial-gradient(1.6px 1.6px at 20px 30px, #fff 55%, transparent 60%),
+    radial-gradient(1.2px 1.2px at 90px 120px, #fff 55%, transparent 60%),
+    radial-gradient(2px 2px at 160px 60px, #fff 50%, transparent 60%),
+    radial-gradient(1.2px 1.2px at 230px 190px, #fff 55%, transparent 60%),
+    radial-gradient(1.6px 1.6px at 300px 90px, #fff 55%, transparent 60%);
+  background-size: 340px 260px;
+  animation: snowfall 28s linear infinite;
+}
+[data-theme="light"] body::before {
+  opacity: 0.9;
+  filter: drop-shadow(0 0 1px rgba(80, 120, 170, 0.5));
+}
+@keyframes snowfall {
+  to {
+    background-position: 60px 260px;
+    transform: translateY(300px);
+  }
+}
+#root {
+  position: relative;
+  z-index: 2;
 }
 /* Fine film grain over everything */
 body::after {
@@ -86,10 +146,15 @@ body::after {
 }
 
 .panel {
-  background: var(--card);
+  background:
+    linear-gradient(160deg, var(--frost), transparent 38%),
+    var(--card);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
   border: 1px solid var(--line);
   border-radius: var(--radius-panel);
   padding: 16px;
+  box-shadow: inset 0 1px 0 var(--frost), 0 10px 30px -18px rgba(0, 0, 0, 0.6);
 }
 .eyebrow {
   font-family: var(--font-mono);
@@ -144,7 +209,8 @@ body::after {
 .btn-primary {
   background: var(--signal);
   border-color: var(--signal);
-  color: #fff;
+  color: var(--on-signal);
+  font-weight: 600;
 }
 .btn-primary:hover {
   filter: brightness(1.12);
@@ -153,7 +219,7 @@ body::after {
 .btn-gain {
   background: var(--gain);
   border-color: var(--gain);
-  color: #fff;
+  color: var(--on-signal);
 }
 .btn-gain:hover {
   filter: brightness(1.1);

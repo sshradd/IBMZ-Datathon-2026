@@ -13,7 +13,7 @@ export default function Benchmark({ system }: { system: SystemInfo | null }) {
     <div className="space-y-4">
       <div className="panel text-sm">
         <p>
-          Run <code className="mono rounded-chip border border-line px-1.5 text-[12px]">python bench/run.py engine --n 100000</code> on each machine
+          Run <code className="mono rounded-chip border border-line px-1.5 text-[12px]">python bench/run.py engine --hours 408</code> on each machine
           (add <code className="mono rounded-chip border border-line px-1.5 text-[12px]">--procs N</code> to use more cores). Results appear here.
         </p>
         {system && (
@@ -28,8 +28,8 @@ export default function Benchmark({ system }: { system: SystemInfo | null }) {
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-2">
-            <ChartCard title="Throughput (transactions/sec, higher is better)" data={rows} dataKey="tps" color="var(--gain)" />
-            <ChartCard title="p99 decision latency (ms, lower is better)" data={rows} dataKey="p99" color="var(--info)" />
+            <ChartCard title="Throughput (county scores per second, higher is better)" data={rows} dataKey="tps" color="var(--gain)" />
+            <ChartCard title="p99 latency per county score (ms, lower is better)" data={rows} dataKey="p99" color="var(--info)" />
           </div>
           <div className="panel overflow-auto">
             <table className="tabular w-full text-left text-xs">
@@ -38,8 +38,8 @@ export default function Benchmark({ system }: { system: SystemInfo | null }) {
                   <th className="py-1.5 font-normal">Run</th>
                   <th>Machine</th>
                   <th>CPUs</th>
-                  <th className="text-right">N</th>
-                  <th className="text-right">TPS</th>
+                  <th className="text-right">Scores</th>
+                  <th className="text-right">Scores/s</th>
                   <th className="text-right">p50 ms</th>
                   <th className="text-right">p99 ms</th>
                   <th className="text-right">max ms</th>

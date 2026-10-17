@@ -13,16 +13,16 @@ Judges look for screenshots of the LinuxONE instance and the platform capabiliti
 ## App running on Z
 
 - [ ] `./run.sh` output in the SSH terminal
-- [ ] Dashboard header badge: "Running on IBM LinuxONE · s390x"
-- [ ] `curl -s localhost:8000/api/system` output
-- [ ] Ops console mid-stream with alerts and the mule-ring radar
-- [ ] Guardian view with a held senior payment
+- [ ] Dashboard header badge: "IBM LinuxONE · s390x"
+- [ ] `curl -s localhost:8000/api/system` output (`"byteorder": "big"`, `"is_ibm_z": true`)
+- [ ] Storm replay of Winter Storm Uri mid-stream, honest model, "Out of sample" label visible
+- [ ] "Who first" tab with the priority list
+- [ ] A county's plain-English reasons
 
 ## Benchmark
 
-- [ ] `bench/run.py engine --n 100000` output on LinuxONE
+- [ ] `bench/run.py engine --hours 408` output on LinuxONE
 - [ ] Same with `--procs` equal to the CPU count
-- [ ] `bench/run.py http` output
 - [ ] Benchmark tab showing laptop vs LinuxONE side by side
 - [ ] `top` or `htop` during the multi-process run (all cores busy)
 
@@ -30,7 +30,7 @@ Judges look for screenshots of the LinuxONE instance and the platform capabiliti
 
 - [ ] `docker build` or `podman build` finishing on s390x
 - [ ] `docker ps` with the container running
-- [ ] `docker image inspect scam-stopper --format '{{.Architecture}}'` (shows `s390x`)
+- [ ] `docker image inspect uri-watch --format '{{.Architecture}}'` (shows `s390x`)
 
 ## Security (only what you actually use)
 

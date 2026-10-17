@@ -1,64 +1,79 @@
-from scamstopper.engine import Engine
-from scamstopper.model import LogisticModel
-from scamstopper.models import Txn
-from scamstopper.sim import Simulator
+import math
+
+from uriwatch.engine import Engine, Scorecard, explain
+from uriwatch.features import FEATURES, N_FEATURES, severe_threshold
+from uriwatch.model import LogisticModel
+from uriwatch.replay import Session, available, load_bundle, load_model
 
 
-def make_engine():
-    sim = Simulator(seed=11)
-    engine = Engine(LogisticModel.load())
-    engine.warm(sim.warmup())
-    return sim, engine
+def test_models_match_feature_list():
+    for name in ("honest", "final"):
+        m = load_model(name)
+        assert len(m.weights) == N_FEATURES == len(FEATURES)
+        assert m.tiers["watch"] < m.tiers["prepare"] < m.tiers["act"]
 
 
-def test_regular_payment_is_allowed():
-    sim, engine = make_engine()
-    u = sim.users[0]
-    d = engine.score(Txn(id="a", ts=sim.ts, sender_id=u.id, receiver_id=u.payees[0],
-                         amount=round(u.typical, 2), sender_age_band=u.age_band,
-                         sender_account_age_days=u.account_age_days,
-                         receiver_account_age_days=sim.account_age[u.payees[0]]))
-    assert d.action == "allow"
-    assert d.reasons == []
+def test_risk_is_a_probability_and_matches_contributions():
+    m = load_model("honest")
+    x = [0.0] * N_FEATURES
+    r = m.risk(x)
+    assert 0.0 < r < 1.0
+    z = m.bias + sum(m.contributions(x))
+    assert math.isclose(r, 1 / (1 + math.exp(-z)), rel_tol=1e-9)
 
 
-def test_senior_gift_card_scam_is_held_with_reasons():
-    sim, engine = make_engine()
-    v = sim.seniors[0]
-    d = None
-    for i in range(3):
-        d = engine.score(Txn(id=f"g{i}", ts=sim.ts + i * 120, sender_id=v.id, receiver_id="x999",
-                             amount=400.0, memo="gift cards for IRS", sender_age_band="65+",
-                             sender_account_age_days=v.account_age_days,
-                             receiver_account_age_days=5))
-    assert d.action == "hold"
-    codes = {r.code for r in d.reasons}
-    assert codes & {"young_receiver", "repeat_to_payee_10m", "amount_vs_usual", "new_payee"}
-    assert all(r.text for r in d.reasons)
+def test_replays_exist_and_align():
+    keys = available()
+    assert {"uri", "elliott", "ice2023", "heat2023"} <= set(keys)
+    b = load_bundle("uri")
+    assert len(b["counties"]) == 254
+    h = b["hours"][0]
+    assert len(h["x"]) == len(h["out"]) == 254 and len(h["x"][0]) == N_FEATURES
 
 
-def test_mule_fan_in_raises_receiver_score():
-    sim, engine = make_engine()
-    first = last = None
-    for i, u in enumerate(sim.users[:8]):
-        d = engine.score(Txn(id=f"f{i}", ts=sim.ts + i * 60, sender_id=u.id, receiver_id="x998",
-                             amount=300.0, sender_age_band=u.age_band,
-                             sender_account_age_days=u.account_age_days,
-                             receiver_account_age_days=7))
-        first = first or d
-        last = d
-    assert last.receiver_score > first.receiver_score
-    ring = engine.rings.snapshot()
-    assert any(n["id"] == "x998" and n["fan_in"] == 8 for n in ring["nodes"])
+def test_uri_is_warned_about_before_it_hits():
+    """The honest model never trained on Uri; most severe counties should still get a watch first."""
+    s = Session("uri", "honest")
+    last = None
+    while not s.done:
+        last = s.step()
+    sc = last["scorecard"]
+    assert sc["onsets"] > 100
+    assert sc["warned"] / sc["onsets"] > 0.5
+    assert sc["median_lead_h"] >= 1
 
 
-def test_simulated_stream_quality():
-    sim = Simulator(seed=5)
-    engine = Engine(LogisticModel.load())
-    engine.warm(sim.warmup())
-    for _ in range(5000):
-        engine.score(sim.next())
-    s = engine.stats.snapshot()
-    assert s["recall"] > 0.6
-    assert s["false_positive_rate"] < 0.03
-    assert s["latency_ms"]["p99"] < 5
+def test_top_list_only_has_counties_not_yet_out():
+    s = Session("ice2023", "honest")
+    for _ in range(100):
+        res = s.step()
+    for c in res["top"]:
+        cty = next(x for x in s.bundle["counties"] if x["fips"] == c["fips"])
+        assert c["out"] < cty["severe_at"]
+        assert c["tier"] in ("watch", "prepare", "act")
+
+
+def test_explain_gives_readable_reasons():
+    s = Session("uri", "honest")
+    for _ in range(200):
+        s.step()
+    x = s.engine.last_x[0]
+    reasons = explain(s.engine.model, x)
+    assert all(isinstance(r["text"], str) and r["text"] for r in reasons)
+
+
+def test_severe_threshold_scales_with_population():
+    assert severe_threshold(10_000) == 2500
+    assert severe_threshold(4_000_000) > 100_000
+
+
+def test_scorecard_counts_warned_and_missed():
+    sc = Scorecard(2)
+    # county 0: alert at hour 1, severe at hour 5 (warned, lead 4h)
+    for h, (tier, sev) in enumerate([(0, False), (1, False), (1, False), (1, False), (1, False), (2, True)]):
+        sc.observe(h, 0, tier, sev)
+    # county 1: never alerted, severe at hour 3 (missed)
+    for h in range(5):
+        sc.observe(h, 1, 0, h >= 3)
+    snap = sc.snapshot()
+    assert snap["onsets"] == 2 and snap["warned"] == 1 and snap["median_lead_h"] == 4
