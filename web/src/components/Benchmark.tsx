@@ -11,31 +11,31 @@ export default function Benchmark({ system }: { system: SystemInfo | null }) {
 
   return (
     <div className="space-y-4">
-      <div className="card text-sm text-gray-300">
+      <div className="panel text-sm">
         <p>
-          Run <code className="rounded bg-white/10 px-1">python bench/run.py engine --n 100000</code> on each machine
-          (add <code className="rounded bg-white/10 px-1">--procs N</code> to use more cores). Results appear here.
+          Run <code className="mono rounded-chip border border-line px-1.5 text-[12px]">python bench/run.py engine --n 100000</code> on each machine
+          (add <code className="mono rounded-chip border border-line px-1.5 text-[12px]">--procs N</code> to use more cores). Results appear here.
         </p>
         {system && (
-          <p className="mt-2 text-gray-400">
+          <p className="mt-2 text-mut">
             This server: {system.machine} · {system.cpus} CPUs · {system.byteorder}-endian · Python {system.python}
           </p>
         )}
       </div>
 
       {!rows.length ? (
-        <div className="card py-10 text-center text-sm text-gray-500">No benchmark results yet.</div>
+        <div className="panel py-10 text-center text-sm text-mut">No benchmark results yet.</div>
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-2">
-            <ChartCard title="Throughput (transactions/sec, higher is better)" data={rows} dataKey="tps" color="#22c55e" />
-            <ChartCard title="p99 decision latency (ms, lower is better)" data={rows} dataKey="p99" color="#60a5fa" />
+            <ChartCard title="Throughput (transactions/sec, higher is better)" data={rows} dataKey="tps" color="var(--gain)" />
+            <ChartCard title="p99 decision latency (ms, lower is better)" data={rows} dataKey="p99" color="var(--info)" />
           </div>
-          <div className="card overflow-auto">
+          <div className="panel overflow-auto">
             <table className="tabular w-full text-left text-xs">
-              <thead className="text-gray-400">
+              <thead className="eyebrow">
                 <tr>
-                  <th className="py-1">Run</th>
+                  <th className="py-1.5 font-normal">Run</th>
                   <th>Machine</th>
                   <th>CPUs</th>
                   <th className="text-right">N</th>
@@ -47,7 +47,7 @@ export default function Benchmark({ system }: { system: SystemInfo | null }) {
               </thead>
               <tbody>
                 {results.map((r, i) => (
-                  <tr key={i} className="border-t border-white/5">
+                  <tr key={i} className="border-t border-soft">
                     <td className="py-1">{rows[i].name}</td>
                     <td>{r.machine}</td>
                     <td>{r.cpus}</td>
@@ -74,14 +74,14 @@ function ChartCard({ title, data, dataKey, color }: {
   color: string;
 }) {
   return (
-    <div className="card">
-      <h3 className="mb-2 text-sm text-gray-300">{title}</h3>
+    <div className="panel">
+      <h3 className="eyebrow mb-3">{title}</h3>
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={data}>
-          <CartesianGrid stroke="#ffffff14" vertical={false} />
-          <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} />
-          <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} />
-          <Tooltip contentStyle={{ background: "#111827", border: "1px solid #374151" }} />
+          <CartesianGrid stroke="var(--line-soft)" vertical={false} />
+          <XAxis dataKey="name" tick={{ fill: "var(--mut)", fontSize: 11 }} />
+          <YAxis tick={{ fill: "var(--mut)", fontSize: 11 }} />
+          <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 8, color: "var(--fg)" }} cursor={{ fill: "var(--line-soft)" }} />
           <Legend />
           <Bar dataKey={dataKey} fill={color} radius={[4, 4, 0, 0]} isAnimationActive={false} />
         </BarChart>

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import clsx from "clsx";
-import { Cpu, ShieldCheck } from "lucide-react";
+import { Cpu, Moon, Sun } from "lucide-react";
 import { useEvents, usePoll, type Stats, type SystemInfo } from "./api";
 import OpsConsole from "./components/OpsConsole";
 import Guardian from "./components/Guardian";
@@ -13,52 +13,79 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "bench", label: "Benchmark" },
 ];
 
+type Theme = "dark" | "light";
+
+function initialTheme(): Theme {
+  try {
+    const saved = localStorage.getItem("ss-theme");
+    if (saved === "light" || saved === "dark") return saved;
+  } catch {
+    /* storage unavailable */
+  }
+  return "dark";
+}
+
 export default function App() {
   const [tab, setTab] = useState<Tab>("ops");
+  const [theme, setTheme] = useState<Theme>(initialTheme);
   const events = useEvents();
   const stats = usePoll<Stats>("/api/stats", 1000);
   const system = usePoll<SystemInfo>("/api/system", 30000);
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem("ss-theme", theme);
+    } catch {
+      /* storage unavailable */
+    }
+  }, [theme]);
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-4">
-      <header className="mb-4 flex flex-wrap items-center gap-3">
-        <ShieldCheck className="h-7 w-7 text-green-500" />
+    <div className="mx-auto max-w-7xl px-4 pb-10 pt-5">
+      <header className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Mark />
         <div className="mr-auto">
-          <h1 className="text-xl font-semibold">Scam Stopper</h1>
-          <p className="text-xs text-gray-400">
-            Stops instant-payment scams from both ends, before the money settles.
-          </p>
+          <h1 className="text-[17px] font-semibold tracking-tight">Scam Stopper</h1>
+          <p className="eyebrow mt-0.5">Decide before the money settles</p>
         </div>
         {system && (
           <span
             className={clsx(
-              "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs",
-              system.is_ibm_z ? "bg-blue-500/20 text-blue-300" : "bg-white/10 text-gray-300",
+              "mono flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px]",
+              system.is_ibm_z ? "border-info text-info" : "border-line text-mut",
             )}
             title={system.platform}
           >
             <Cpu className="h-3.5 w-3.5" />
-            {system.is_ibm_z ? "Running on IBM LinuxONE" : "Running on"} · {system.machine} ·{" "}
-            {system.cpus} CPUs
+            {system.is_ibm_z ? "IBM LinuxONE" : "host"} · {system.machine} · {system.cpus} cpu
           </span>
         )}
-        <span
-          className={clsx(
-            "h-2.5 w-2.5 rounded-full",
-            events.connected ? "bg-green-500" : "bg-red-500",
-          )}
-          title={events.connected ? "Live stream connected" : "Stream disconnected"}
-        />
+        <span className="flex items-center gap-1.5">
+          <span
+            className={clsx("h-2 w-2 rounded-full", events.connected ? "bg-gain" : "bg-loss")}
+            aria-hidden
+          />
+          <span className="eyebrow">{events.connected ? "live" : "offline"}</span>
+        </span>
+        <button
+          className="btn px-2.5 py-1.5"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </button>
       </header>
 
-      <nav className="mb-4 flex gap-1 rounded-lg bg-white/5 p-1 text-sm">
+      <nav className="mb-5 flex gap-6 border-b border-line" aria-label="Views">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
+            aria-current={tab === t.id ? "page" : undefined}
             className={clsx(
-              "flex-1 rounded-md px-3 py-1.5",
-              tab === t.id ? "bg-white/15 text-white" : "text-gray-400 hover:text-white",
+              "eyebrow -mb-px border-b-2 pb-2.5 pt-1 transition-colors",
+              tab === t.id ? "border-signal text-fg" : "border-transparent hover:text-fg",
             )}
           >
             {t.label}
@@ -70,5 +97,14 @@ export default function App() {
       {tab === "guardian" && <Guardian alerts={events.alerts} />}
       {tab === "bench" && <Benchmark system={system} />}
     </div>
+  );
+}
+
+function Mark() {
+  return (
+    <svg viewBox="0 0 32 32" className="h-8 w-8" aria-hidden>
+      <path d="M16 3 27 7.5V16c0 6.2-4.3 10.6-11 13C9.3 26.6 5 22.200 5 16V7.5z" fill="var(--signal)" />
+      <path d="M11.500 16h9" stroke="var(--bg)" strokeWidth="3" strokeLinecap="round" />
+    </svg>
   );
 }

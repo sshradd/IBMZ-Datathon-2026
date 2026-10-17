@@ -1,20 +1,188 @@
 @import "tailwindcss";
+@import "@fontsource-variable/hanken-grotesk";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
 
+/* Design language: near-black "instrument" look with bone-colored text, one
+   oxblood signal, and muted green and terracotta for good and bad. Written
+   fresh for this project; two themes, dark by default. */
 :root {
+  --bg: #0a0a0b;
+  --bg2: #0f0f11;
+  --card: #0d0d0f;
+  --fg: #edece8;
+  --mut: #8f8f89;
+  --line: rgba(237, 236, 232, 0.14);
+  --line-soft: rgba(237, 236, 232, 0.07);
+  --signal: #b0453b;
+  --gain: #5fa382;
+  --loss: #c56a5b;
+  --warn: #c9a04b;
+  --info: #7aa2c9;
+  --grain: 0.05;
   color-scheme: dark;
 }
+[data-theme="light"] {
+  --bg: #f8f7f3;
+  --bg2: #f2f2ef;
+  --card: #ffffff;
+  --fg: #111110;
+  --mut: #5c5c57;
+  --line: rgba(17, 17, 16, 0.16);
+  --line-soft: rgba(17, 17, 16, 0.08);
+  --signal: #8e2a22;
+  --gain: #2f6b4f;
+  --loss: #a8453a;
+  --warn: #8a6a1f;
+  --info: #35618f;
+  --grain: 0.035;
+  color-scheme: light;
+}
 
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg2: var(--bg2);
+  --color-card: var(--card);
+  --color-fg: var(--fg);
+  --color-mut: var(--mut);
+  --color-line: var(--line);
+  --color-soft: var(--line-soft);
+  --color-signal: var(--signal);
+  --color-gain: var(--gain);
+  --color-loss: var(--loss);
+  --color-warn: var(--warn);
+  --color-info: var(--info);
+  --font-sans: "Hanken Grotesk Variable", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius-chip: 2px;
+  --radius-card: 8px;
+  --radius-panel: 12px;
+}
+
+html {
+  background: var(--bg);
+}
 body {
   margin: 0;
-  background: #0b0f17;
-  color: #e5e7eb;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+/* Fine film grain over everything */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  opacity: var(--grain);
+  mix-blend-mode: overlay;
+  background-size: 300px 300px;
+  background-image: url("/grain.svg");
 }
 
-.card {
-  @apply rounded-xl border border-white/10 bg-white/[0.03] p-4;
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  padding: 16px;
 }
-
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mut);
+}
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+.mono {
+  font-family: var(--font-mono);
+}
+.chip {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: var(--radius-chip);
+  border: 1px solid currentColor;
+}
+.chip-allow {
+  color: var(--gain);
+}
+.chip-step_up {
+  color: var(--warn);
+}
+.chip-hold {
+  color: var(--loss);
+  background: color-mix(in srgb, var(--loss) 14%, transparent);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.btn:hover {
+  border-color: var(--fg);
+}
+.btn-primary {
+  background: var(--signal);
+  border-color: var(--signal);
+  color: #fff;
+}
+.btn-primary:hover {
+  filter: brightness(1.12);
+  border-color: var(--signal);
+}
+.btn-gain {
+  background: var(--gain);
+  border-color: var(--gain);
+  color: #fff;
+}
+.btn-gain:hover {
+  filter: brightness(1.1);
+  border-color: var(--gain);
+}
+.btn:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+}
+select {
+  background: var(--bg2);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 5px 8px;
+  font-size: 13px;
+}
+input[type="range"] {
+  accent-color: var(--signal);
+}
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
 }

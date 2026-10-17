@@ -71,34 +71,41 @@ class RingTracker:
         self.max_rings = max_rings
         self.rings: dict[str, dict] = {}
 
+    WINDOW_S = 3600.0  # a ring is "live" while it keeps receiving within the hour
+    MAX_DRAWN = 12     # senders drawn per ring; the fan-in number is still exact
+
     def observe(self, t: Txn, action: str) -> None:
         if t.receiver_account_age_days >= 90:
             return
         ring = self.rings.setdefault(
-            t.receiver_id, {"senders": {}, "total": 0.0, "held": 0, "last_ts": t.ts,
-                            "age_days": t.receiver_account_age_days},
+            t.receiver_id, {"events": deque(), "last_ts": t.ts, "age_days": t.receiver_account_age_days},
         )
-        ring["senders"][t.sender_id] = {"amount": t.amount, "action": action,
-                                        "senior": t.sender_age_band == "65+"}
-        ring["total"] += t.amount
-        ring["held"] += action == "hold"
+        ring["events"].append((t.ts, t.sender_id, t.amount, action, t.sender_age_band == "65+"))
         ring["last_ts"] = t.ts
+        cutoff = t.ts - self.WINDOW_S
+        while ring["events"] and ring["events"][0][0] < cutoff:
+            ring["events"].popleft()
         if len(self.rings) > 500:
-            cutoff = t.ts - DAY
             self.rings = {k: v for k, v in self.rings.items() if v["last_ts"] >= cutoff}
 
     def snapshot(self) -> dict:
-        live = [(k, v) for k, v in self.rings.items() if len(v["senders"]) >= self.min_fan_in]
-        live.sort(key=lambda kv: (len(kv[1]["senders"]), kv[1]["last_ts"]), reverse=True)
+        rings = []
+        for rid, ring in self.rings.items():
+            latest: dict[str, tuple] = {}
+            for ev in ring["events"]:
+                latest[ev[1]] = ev  # one edge per sender: their most recent payment
+            if len(latest) >= self.min_fan_in:
+                rings.append((rid, ring, latest))
+        rings.sort(key=lambda r: (len(r[2]), r[1]["last_ts"]), reverse=True)
         nodes, edges = [], []
-        for rid, ring in live[: self.max_rings]:
+        for rid, ring, latest in rings[: self.max_rings]:
+            held = sum(1 for e in ring["events"] if e[3] == "hold")
             nodes.append({"id": rid, "kind": "receiver", "age_days": ring["age_days"],
-                          "total": round(ring["total"], 2), "fan_in": len(ring["senders"]),
-                          "held": ring["held"]})
-            for sid, info in ring["senders"].items():
-                nodes.append({"id": sid, "kind": "sender", "senior": info["senior"]})
-                edges.append({"source": sid, "target": rid, "amount": info["amount"],
-                              "action": info["action"]})
+                          "total": round(sum(e[2] for e in ring["events"]), 2),
+                          "fan_in": len(latest), "held": held})
+            for ts, sid, amount, action, senior in list(latest.values())[-self.MAX_DRAWN:]:
+                nodes.append({"id": sid, "kind": "sender", "senior": senior})
+                edges.append({"source": sid, "target": rid, "amount": amount, "action": action})
         return {"nodes": nodes, "edges": edges}
 
 

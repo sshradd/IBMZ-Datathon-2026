@@ -31,6 +31,8 @@ The model (logistic regression trained with SGD) is written from scratch in `mod
 | Recharts | MIT | https://github.com/recharts/recharts |
 | Lucide icons | ISC | https://github.com/lucide-icons/lucide |
 | clsx | MIT | https://github.com/lukeed/clsx |
+| Hanken Grotesk (via @fontsource-variable/hanken-grotesk, self-hosted) | OFL-1.1 | https://github.com/fontsource/font-files |
+| JetBrains Mono (via @fontsource/jetbrains-mono, self-hosted) | OFL-1.1 | https://github.com/JetBrains/JetBrainsMono |
 
 Exact versions: `web/package-lock.json`.
 
@@ -42,6 +44,7 @@ Exact versions: `web/package-lock.json`.
 ## Patterns borrowed (no code)
 
 - Vite + React + `vite-plugin-pwa` setup and pinned `requirements.txt` / non-root `python:3.12-slim` Dockerfile conventions the team already knew. All code in this repo was written during the event.
+- **Visual style** (near-black and bone palette, oxblood accent, muted green and terracotta, mono uppercase labels, hairline borders, two themes) follows the team's prior design work. Only the design language is reused: every stylesheet and component in `web/src` was written fresh during the event, and no files were copied from earlier projects.
 
 ## AI assistance
 
