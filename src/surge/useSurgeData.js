@@ -37,7 +37,7 @@ export function useSurgeData() {
     const list = plan.priorities.slice(0, 8).map(p => {
       const i = idx.get(p.fips);
       const c = counties[i];
-      const nowIdx = riskIndex(p.risk, tiers, p.status === "out");
+      const nowIdx = p.harm_score != null ? Math.round(p.harm_score) : riskIndex(p.risk, tiers, p.status === "out");
       let delta = 0;
       if (prev && prev !== history[history.length - 1] && c) {
         const row = prev.counties[i];
@@ -61,6 +61,9 @@ export function useSurgeData() {
           list.push({ id: c.fips, fips: c.fips, name: c.name, risk: riskIndex(row[0], tiers, row[2] >= c.severe_at), delta, exposure: Math.round(row[0] * c.pop), seniors: Math.round(row[0] * c.pop65), eta: null, depot: null, status: "clear", out: row[2], why: null });
         });
     }
+
+    // when the API supplies a harm_score per county the page ranks and colors by it; until then it uses the model's risk index
+    const harm = plan.priorities.some(p => p.harm_score != null) ? Object.fromEntries(plan.priorities.map(p => [p.fips, Math.round(p.harm_score ?? 0)])) : null;
 
     const actions = plan.priorities.slice(0, 6).map(p => ({
       id: p.fips, kind: "crew", fips: p.fips, county: p.county, status: p.status,
@@ -105,6 +108,6 @@ export function useSurgeData() {
       { key: "shed", n: `${st.fc_err >= 0 ? "+" : ""}${Math.round(st.fc_err * 100)}%`, label: "Demand vs ERCOT forecast", sub: st.fc_err < -0.12 ? "Load is being shed" : "No load shedding signal" },
       { key: "nws", n: nws, label: "Weather service alerts", sub: nws ? "relevant to the grid" : "none relevant to the grid" },
     ];
-    return { counties: list, changes, scoring, actions, summary, weather, people: ROSTER, cov: coverage(plan.priorities, units), now, live: !!latest.live };
+    return { counties: list, harm, metric: harm ? "Harm score" : "Risk", changes, scoring, actions, summary, weather, people: ROSTER, cov: coverage(plan.priorities, units), now, live: !!latest.live };
   }, [latest, plan, counties, ops, tiers, history]);
 }

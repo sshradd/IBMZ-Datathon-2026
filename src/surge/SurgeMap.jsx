@@ -3,7 +3,7 @@ import CountyMap from "../components/CountyMap.jsx";
 import { useStore } from "../lib/store.jsx";
 
 /** The page's map: real county shapes colored by the model, on satellite imagery, with depots and the route to the selected county. */
-export default function SurgeMap({ layer, selected, onSelect, cov }) {
+export default function SurgeMap({ layer, selected, onSelect, cov, harm = null }) {
   const { latest, counties, tiers, ops, plan } = useStore();
   const focusFips = selected ?? plan?.priorities[0]?.fips ?? null;
   const focus = counties.find(c => c.fips === focusFips);
@@ -29,7 +29,7 @@ export default function SurgeMap({ layer, selected, onSelect, cov }) {
     <CountyMap
       latest={latest} counties={counties} layer={layer} tiers={tiers} selected={selected} onSelect={onSelect}
       depots={ops?.depots ?? []} lines={lines} staging={[]} beacon={plan?.priorities[0] ? [plan.priorities[0].fips] : []}
-      bottomPad={60} coverageSets={sets}
+      bottomPad={60} coverageSets={sets} harmValues={harm}
     />
   );
 }

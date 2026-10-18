@@ -43,7 +43,7 @@ function arc(a, b) {
   return pts;
 }
 
-export default function CountyMap({ latest, counties, layer, tiers, selected, onSelect, depots = [], lines = [], staging = [], beacon = [], bottomPad = 60, coverageSets = null }) {
+export default function CountyMap({ latest, counties, layer, tiers, selected, onSelect, depots = [], lines = [], staging = [], beacon = [], bottomPad = 60, coverageSets = null, harmValues = null }) {
   const host = useRef(null);
   const mapRef = useRef(null);
   const markers = useRef([]);
@@ -201,6 +201,11 @@ export default function CountyMap({ latest, counties, layer, tiers, selected, on
             tier = 4;
             op = TIER_OPACITY[4];
           }
+        } else if (layer === "harm") {
+          // colored by the API's harm_score (0 to 100) on the same lines as the legend
+          const h = harmValues?.[c.fips] ?? 0;
+          tier = h >= 80 ? 3 : h >= 65 ? 2 : h >= 50 ? 1 : 0;
+          op = TIER_OPACITY[tier];
         } else if (layer === "seniors") {
           const v = row[0] * c.pop65;
           tier = 3;
@@ -224,7 +229,7 @@ export default function CountyMap({ latest, counties, layer, tiers, selected, on
       }
       map.setFeatureState({ source: "counties", id: c.fips }, { c: TIER_COLOR[tier], o: op, sev, sel: selected === c.fips });
     }
-  }, [latest, layer, tiers, selected, counties, index, ready, coverageSets]);
+  }, [latest, layer, tiers, selected, counties, index, ready, coverageSets, harmValues]);
 
   // selecting a county brings it into view, with its route if it has one
   const prevSel = useRef(null);
@@ -249,7 +254,7 @@ export default function CountyMap({ latest, counties, layer, tiers, selected, on
     const i = index.get(hover.fips);
     const row = i != null ? latest?.counties[i] : undefined;
     if (!c || !row) return null;
-    const what = layer === "out" ? `${row[2].toLocaleString()} customers out` : layer === "seniors" ? `${Math.round(row[0] * c.pop65).toLocaleString()} seniors expected at risk` : layer === "coverage" ? (coverageSets?.covered.has(c.fips) ? "crew assigned" : coverageSets?.uncovered.has(c.fips) ? "needs a crew, none assigned" : "no action needed") : layer === "nws" ? (latest?.alerts?.by_fips[c.fips] ?? ["no active alerts"]).join(", ") : `${pct(layer === "p6" ? row[3] : layer === "p12" ? row[4] : row[0], 1)} risk within ${layer.slice(1)} h`;
+    const what = layer === "out" ? `${row[2].toLocaleString()} customers out` : layer === "seniors" ? `${Math.round(row[0] * c.pop65).toLocaleString()} seniors expected at risk` : layer === "harm" ? `harm score ${harmValues?.[c.fips] ?? 0}` : layer === "coverage" ? (coverageSets?.covered.has(c.fips) ? "crew assigned" : coverageSets?.uncovered.has(c.fips) ? "needs a crew, none assigned" : "no action needed") : layer === "nws" ? (latest?.alerts?.by_fips[c.fips] ?? ["no active alerts"]).join(", ") : `${pct(layer === "p6" ? row[3] : layer === "p12" ? row[4] : row[0], 1)} risk within ${layer.slice(1)} h`;
     return { x: hover.x, y: hover.y, name: `${c.name} County`, what };
   }, [hover, byFips, index, latest, layer]);
 

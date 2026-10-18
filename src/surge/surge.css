@@ -164,3 +164,32 @@ main{}
 
 #root .sg .r3{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #root .sg .st-meta .chg{color:var(--ink-2)}
+
+/* hero wrapper, time slider, briefing panel */
+#root .sg .hero-wrap{margin-bottom:14px;border:1px solid var(--hair);border-radius:12px;overflow:hidden;background:var(--p)}
+#root .sg .hero-wrap .hero{margin:0;border:0;border-radius:0}
+#root .sg .timebar{display:flex;align-items:center;gap:14px;padding:10px 16px;border-top:1px solid var(--hair);background:var(--p2)}
+#root .sg .tb-track{flex:1;min-width:0}
+#root .sg .tb-ends{display:flex;justify-content:space-between;gap:10px;margin-top:2px;font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
+#root .sg .tb-ends b{color:var(--ink);font-weight:600}
+#root .sg .tb-live{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--red)}
+#root .sg .tb-note{font-size:13px;color:var(--ink-3)}
+#root .sg .timebar input[type=range]{width:100%;height:22px;margin:0;background:none;appearance:none;-webkit-appearance:none;cursor:pointer}
+#root .sg .timebar input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(90deg,var(--acc) var(--p,0%),rgba(255,255,255,.14) var(--p,0%))}
+#root .sg .timebar input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;margin-top:-7px;border-radius:50%;background:var(--acc);border:2px solid #0a0c1b}
+#root .sg .timebar input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:rgba(255,255,255,.14)}
+#root .sg .timebar input[type=range]::-moz-range-progress{height:4px;border-radius:2px;background:var(--acc)}
+#root .sg .timebar input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--acc);border:2px solid #0a0c1b}
+#root .sg .cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:14px;align-items:start}
+#root .sg .cols .block{margin-bottom:14px}
+#root .sg .briefing{position:sticky;top:64px}
+#root .sg .briefing h3{margin:14px 0 6px;font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+#root .sg .bf-status{font-size:14px;line-height:1.5;color:var(--ink-2)}#root .sg .bf-status b{color:var(--ink)}
+#root .sg .briefing ol{margin:0;padding:0;list-style:none;counter-reset:b}
+#root .sg .briefing li{counter-increment:b;display:grid;grid-template-columns:20px 1fr;padding:7px 0;border-top:1px solid var(--hair)}
+#root .sg .briefing li::before{content:counter(b);font-family:var(--mono);font-size:12px;color:var(--ink-3);padding-top:2px}
+#root .sg .briefing li b{grid-column:2;font-weight:600;font-size:14px}#root .sg .briefing li span{grid-column:2;font-size:12.5px;color:var(--ink-3)}
+#root .sg .bf-watch,#root .sg .bf-cap{font-size:13.5px;color:var(--ink-2)}#root .sg .bf-cap{margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+#root .sg .bf-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+@media (max-width:980px){#root .sg .cols{grid-template-columns:1fr}#root .sg .briefing{position:static}}
+@media (max-width:640px){#root .sg .timebar{padding:10px 12px;gap:10px}#root .sg .tb-ends span{display:none}}

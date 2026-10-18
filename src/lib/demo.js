@@ -52,7 +52,7 @@ function recount() {
 }
 
 function status() {
-  return { running: sim.running, scenario: sim.started ? data.meta.scenario : null, title: data.meta.title, model: "honest", i: sim.next, n: data.meta.n, speed: 1 };
+  return { running: sim.running, scenario: sim.started ? data.meta.scenario : null, title: data.meta.title, model: "honest", i: sim.next, n: data.meta.n, from: first(), to: last(), speed: 1 };
 }
 
 function emit(msg) {
@@ -61,7 +61,7 @@ function emit(msg) {
 }
 
 function showHour(h) {
-  const ev = frame(h).event;
+  const ev = { ...frame(h).event, from: first(), to: last(), running: sim.running };
   sim.cur = h;
   sim.last = ev;
   sim.next = h + 1;

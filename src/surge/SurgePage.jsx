@@ -1,6 +1,6 @@
 // The SURGE overview page: the layout, sections and Assign panel from the team's front end, running on the live
 // (or recorded) feed instead of typed-in numbers. Every number on it comes from the model or the ops state.
-import { AlertTriangle, ArrowRight, CloudLightning, Download, Eye, FileText, Menu, PersonStanding, Printer, Radar, Radio, RefreshCw, ShieldAlert, Users, Volume2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, Pause, Play, CloudLightning, Download, Eye, FileText, Menu, PersonStanding, Printer, Radar, Radio, RefreshCw, ShieldAlert, Users, Volume2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AlertBanner from "../components/AlertBanner.jsx";
 import AssignSheet from "../components/AssignSheet.jsx";
@@ -39,11 +39,10 @@ export default function SurgePage() {
   useEffect(() => { if (ready) api("GET", "/api/models").then(m => setModel(m.honest)).catch(() => {}); }, [ready]);
   const [system, setSystem] = useState(null);
   useEffect(() => { if (ready && !s.demo) api("GET", "/api/system").then(setSystem).catch(() => {}); }, [ready, s.demo]);
-  const layer = mode === "risk" ? hz : mode === "exposure" ? "out" : mode;
+  const layer = mode === "risk" ? (data?.harm ? "harm" : hz) : mode === "exposure" ? "out" : mode;
   const [selected, setSelected] = useState(null);
   const [assigned, setAssigned] = useState({}); // actionId -> { personIds, note, fileName, mode }
   const [openId, setOpenId] = useState(null);
-  const [sms, setSms] = useState(null);
   const [menu, setMenu] = useState(false);
 
   // first open with nothing running: load the recorded outages so the page is never empty
@@ -101,7 +100,7 @@ export default function SurgePage() {
   return (
     <>
     <div className="sg">
-      <Header onMenu={() => setMenu(v => !v)} menu={menu} live={data.live} label={feedLabel(data.live)} briefing={() => downloadBriefPdf(summary, ranked, actions)} />
+      <Header onMenu={() => setMenu(v => !v)} menu={menu} live={data.live} label={feedLabel(data.live)} briefing={() => { document.getElementById("briefing")?.scrollIntoView({ behavior: "smooth", block: "center" }); downloadBriefPdf(summary, ranked, actions); }} />
 
       <main>
         <section className="strip" aria-label="Situation">
@@ -121,17 +120,18 @@ export default function SurgePage() {
           </div>
         </section>
 
-        <section className="hero" aria-label="County risk">
+        <section className="hero-wrap" aria-label="County risk">
+        <div className="hero">
           <div className="map-wrap">
-            {mode === "risk" && <div className="hz" role="group" aria-label="Forecast window">{HORIZONS.map(([id, t]) =>
+            {mode === "risk" && !data.harm && <div className="hz" role="group" aria-label="Forecast window">{HORIZONS.map(([id, t]) =>
               <button key={id} className={hz === id ? "on" : ""} onClick={() => setHz(id)} aria-pressed={hz === id}>{t}</button>)}</div>}
-            <SurgeMap layer={layer} selected={selected} onSelect={setSelected} cov={cov} />
+            <SurgeMap layer={layer} selected={selected} onSelect={setSelected} cov={cov} harm={data.harm} />
             <div className="modes" role="group" aria-label="Map layer">{modeList.map(([id, t, I]) =>
               <button key={id} className={mode === id ? "on" : ""} onClick={() => setMode(id)} aria-pressed={mode === id} aria-label={t} title={t}><I size={20} /></button>)}</div>
           </div>
           <aside className="rank-col" aria-label="Ranking">
             <div className="rank-h">
-              <div><h2>County ranking</h2><p>Model risk, 0 to 100 · as of {dayClock(data.now)} CST</p></div>
+              <div><h2>County ranking</h2><p>{data.metric}, 0 to 100 · as of {dayClock(data.now)} CST</p></div>
               <button className="icon-btn" onClick={speak} aria-label="Read the top three aloud" title="Read the top three aloud"><Volume2 size={18} /></button>
             </div>
             <p className="key" title="Risk index: 50 is the model's watch line, 65 prepare, 80 act, 100 already out">
@@ -147,8 +147,11 @@ export default function SurgePage() {
                 </div>
               </li>); })}</ol>
           </aside>
+        </div>
+        <TimeBar s={s} />
         </section>
 
+        <div className="cols">
         <section className="block" aria-label="Assignments">
           <div className="block-h"><div><h2>Assignments</h2>
             <p>{cov.need.length ? <>{cov.covered.length} of {cov.need.length} counties needing action have a crew{cov.uncovered.length > 0 && <> · <b className="red">{cov.uncovered.length} without</b></>}</> : "No county needs a crew right now"}</p></div>
@@ -180,6 +183,9 @@ export default function SurgePage() {
           })}
         </section>
 
+        <BriefingPanel summary={summary} ranked={ranked} actions={actions} now={data.now} />
+        </div>
+
         <section className="block" aria-label="How far to trust it">
           <div className="block-h"><div><h2>How far to trust it</h2><p>Tested on outages the model never saw</p></div></div>
           <div className="trust-grid">
@@ -192,20 +198,6 @@ export default function SurgePage() {
           </div>
         </section>
 
-        <section className="block" aria-label="Weather and grid">
-          <div className="block-h"><div><h2>Weather and grid</h2><p>{clock(data.now)}</p></div></div>
-          <div className="figs">{weather.map(f => (
-            <div key={f.key}><small>{f.label}</small><b>{f.n}</b><span>{f.sub}</span></div>))}</div>
-        </section>
-
-        <div className="foot-actions">
-          <button className="btn" onClick={() => downloadBriefPdf(summary, ranked, actions)}><Printer size={16} /> Print brief</button>
-          <button className="btn" onClick={() => setSms(buildSms(summary, ranked, actions))}><Radio size={16} /> Text a summary</button>
-        </div>
-        {sms && <div className="sms"><p>{sms}</p><small>{sms.length} chars</small>
-          <button className="btn" onClick={() => navigator.clipboard.writeText(sms)}>Copy</button>
-          <button className="btn primary" onClick={() => sendSms(sms)}>Open in Messages</button></div>}
-
         <p className="foot">Recommendations only. Crews, depots and the roster are sample data. <a href="#/classic">Classic view</a></p>
       </main>
     </div>
@@ -216,6 +208,66 @@ export default function SurgePage() {
     <AssignSheet />
     <DraftSheet />
     </>
+  );
+}
+
+function TimeBar({ s }) {
+  const { state: st, latest } = s;
+  const [drag, setDrag] = useState(null);
+  const timer = useRef(0);
+  if (!latest) return null;
+  const replay = !latest.live;
+  if (!replay) {
+    return <div className="timebar"><span className="tb-live">Live feed</span><span className="tb-note">The time slider replays recorded outages. Live mode moves forward on its own.</span></div>;
+  }
+  const lo = latest.from ?? st?.from ?? 0;
+  const hi = latest.to ?? st?.to ?? Math.max(lo, (st?.n ?? 1) - 1);
+  const cur = latest.i ?? lo;
+  const running = st?.running ?? latest.running;
+  const at = k => dayClock(new Date(Date.parse(latest.t) + (k - cur) * 36e5).toISOString());
+  const move = v => {
+    setDrag(v);
+    if (st?.running) s.pause();
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => s.seek(v), 120);
+  };
+  return (
+    <div className="timebar">
+      <button className="icon-btn" onClick={running ? s.pause : s.resume} aria-label={running ? "Pause" : "Play"}>{running ? <Pause size={16} /> : <Play size={16} />}</button>
+      <div className="tb-track">
+        <input type="range" min={lo} max={hi} value={drag ?? cur} onChange={e => move(+e.target.value)} onPointerUp={() => setDrag(null)} onKeyUp={() => setDrag(null)}
+          aria-label="Time" aria-valuetext={at(drag ?? cur)} style={{ "--p": `${((drag ?? cur) - lo) / Math.max(1, hi - lo) * 100}%` }} />
+        <div className="tb-ends"><span>{at(lo)}</span><b>{at(drag ?? cur)} CST</b><span>{at(hi)}</span></div>
+      </div>
+    </div>
+  );
+}
+
+function BriefingPanel({ summary, ranked, actions, now }) {
+  const watch = ranked.filter(c => !actions.some(a => a.fips === c.fips)).slice(0, 3);
+  const [copied, setCopied] = useState(false);
+  const text = [
+    `SURGE briefing · ${dayClock(now)} CST`,
+    `${summary.status}. ${summary.note}`,
+    "", "DO NOW", ...actions.slice(0, 3).map((a, i) => `${i + 1}. ${a.title} (${a.where})${a.leave === 0 ? " – leave now" : ` – leave in ${a.leave} min`}`),
+    ...(watch.length ? ["", "WATCH", ...watch.map(c => `${c.name} ${c.risk}`)] : []),
+    "", `CREWS ${summary.crewsAvailable} free, ${summary.crewsInPlan} in the plan`,
+  ].join("\n");
+  const copy = async () => { try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* clipboard blocked */ } };
+  return (
+    <aside className="block briefing" id="briefing" aria-label="Briefing">
+      <div className="block-h"><div><h2>Briefing</h2><p>{dayClock(now)} CST · ready to send</p></div></div>
+      <p className="bf-status"><b>{summary.status}.</b> {summary.note}</p>
+      <h3>Do now</h3>
+      <ol>{actions.slice(0, 3).map(a => <li key={a.id}><b>{a.title}</b><span>{a.where}{a.leave === 0 ? " · leave now" : ` · leave in ${a.leave} min`}</span></li>)}</ol>
+      {watch.length > 0 && <><h3>Watch</h3><p className="bf-watch">{watch.map(c => `${c.name} ${c.risk}`).join(" · ")}</p></>}
+      <p className="bf-cap">Crews: {summary.crewsAvailable} free · {summary.crewsInPlan} in the plan</p>
+      <div className="bf-actions">
+        <button className="btn" onClick={() => downloadBriefPdf(summary, ranked, actions)}><Printer size={16} /> PDF</button>
+        <button className="btn" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
+        <button className="btn primary" onClick={() => sendSms(buildSms(summary, ranked, actions))}><Radio size={16} /> Text it</button>
+      </div>
+    </aside>
   );
 }
 
