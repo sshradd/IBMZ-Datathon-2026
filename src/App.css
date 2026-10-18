@@ -176,6 +176,8 @@ td:first-child{overflow:hidden}
 .assign-panel .person.on{border-color:var(--ember);background:var(--ember-soft)}
 .assign-panel .person input{width:18px;height:18px;accent-color:var(--ember);flex:none}
 .assign-panel .person span{display:grid;gap:2px}
+.assign-panel .person input.phone-input{width:100%;max-width:260px;height:40px;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--glass-dark);color:#fff;font:inherit;font-size:15px}
+.assign-panel .person input.phone-input:focus{outline:2px solid var(--ember);outline-offset:1px}
 .assign-panel .person small{color:var(--mut);font-weight:400;font-size:13px}
 .assign-panel textarea{font:inherit;font-size:17px;color:#fff;background:var(--glass-dark);border:1px solid var(--line);border-radius:var(--r-md);padding:14px 16px;width:100%;resize:vertical}
 .assign-panel textarea:focus{outline:2px solid var(--ember);outline-offset:1px}
