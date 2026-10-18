@@ -12,21 +12,25 @@ const fallbackFields = {
 
 const number = value => Number.isFinite(Number(value)) ? Number(value) : 0;
 const clamp = value => Math.max(0, Math.min(100, value));
+let countyNamesPromise;
 
 export async function loadLiveData() {
-  const [response, shapesResponse] = await Promise.all([
-    fetch(LIVE_DATA_URL),
-    fetch(COUNTY_SHAPES_URL),
-  ]);
+  const liveUrl = `${LIVE_DATA_URL}${LIVE_DATA_URL.includes("?") ? "&" : "?"}_=${Date.now()}`;
+  const response = await fetch(liveUrl, { cache: "no-store" });
   if (!response.ok) throw new Error(`Live data request failed (${response.status}).`);
-  if (!shapesResponse.ok) throw new Error(`County names request failed (${shapesResponse.status}).`);
-  const [data, shapes] = await Promise.all([response.json(), shapesResponse.json()]);
+  const data = await response.json();
   if (!Array.isArray(data.counties)) throw new Error("Live data is missing its counties array.");
-  const names = Object.fromEntries(
-    shapes.features
-      .filter(feature => feature.properties.STATE === "48")
-      .map(feature => [`48${feature.properties.COUNTY}`, feature.properties.NAME]),
-  );
+  countyNamesPromise ||= fetch(COUNTY_SHAPES_URL)
+    .then(shapesResponse => {
+      if (!shapesResponse.ok) throw new Error(`County names request failed (${shapesResponse.status}).`);
+      return shapesResponse.json();
+    })
+    .then(shapes => Object.fromEntries(
+      shapes.features
+        .filter(feature => feature.properties.STATE === "48")
+        .map(feature => [`48${feature.properties.COUNTY}`, feature.properties.NAME]),
+    ));
+  const names = await countyNamesPromise;
 
   const counties = data.counties.map(record => {
     const fips = String(record.fips).padStart(5, "0");
@@ -48,6 +52,7 @@ export async function loadLiveData() {
   return {
     counties,
     generatedAt: data.generated_at,
+    fetchedAt: new Date().toISOString(),
     source: data.source,
     note: data.note,
   };

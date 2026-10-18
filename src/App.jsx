@@ -10,6 +10,7 @@ import { sendAssignment, findCounty, buildBlurb, makeAssignmentPdf } from "./lib
 import { loadLiveData } from "./lib/liveData.js";
 
 const fmt = n => (n >= 1000 ? (n / 1000).toFixed(1).replace(".0", "") + "k" : n);
+const liveRefreshMs = Math.max(60000, Number(import.meta.env.VITE_LIVE_REFRESH_MS || 300000));
 const tier = r => (r >= 80 ? ["Act now", "crit"] : r >= 50 ? ["Prepare", "warn"] : ["Monitor", "ok"]);
 const facIcons = { hospitals: Hospital, care: Building2, water: Droplets, warming: ShieldCheck };
 
@@ -22,9 +23,23 @@ export default function App() {
   const [liveError, setLiveError] = useState("");
 
   useEffect(() => {
-    loadLiveData()
-      .then(setLiveData)
-      .catch(error => setLiveError(error.message));
+    let active = true;
+    const refresh = () => loadLiveData()
+      .then(data => {
+        if (active) {
+          setLiveData(data);
+          setLiveError("");
+        }
+      })
+      .catch(error => {
+        if (active) setLiveError(error.message);
+      });
+    refresh();
+    const timer = window.setInterval(refresh, liveRefreshMs);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   }, []);
 
   const liveCounties = liveData?.counties || counties;
@@ -60,7 +75,7 @@ export default function App() {
         <small className="eyebrow">OPERATIONS OVERVIEW</small>
         <h1>Good afternoon, Regional Ops</h1>
         <p className="sub">Prioritized actions for {new Date().toLocaleString([], { weekday: "long", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
-        {liveData && <p className="live-source">Live data: {liveData.source} · updated {liveSummary.updated}</p>}
+        {liveData && <p className="live-source">Live data: {liveData.source} · generated {liveSummary.updated} · fetched {new Date(liveData.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })} · refreshes every {Math.round(liveRefreshMs / 60000)} min</p>}
         {liveError && <p className="live-source error">Live data unavailable; showing fallback data. {liveError}</p>}
 
         <div className="kpis">
