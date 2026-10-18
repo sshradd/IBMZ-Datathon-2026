@@ -162,12 +162,11 @@ export default function SurgePage() {
 </div>
             <div className="rank-col">
               <div className="table-x"><table>
-                <thead><tr><th>RANK / COUNTY</th><th>RISK</th><th>EXPOSURE</th><th>ACTION</th></tr></thead>
+                <thead><tr><th>RANK / COUNTY</th><th>RISK</th><th>ACTION</th></tr></thead>
                 <tbody>{ranked.map((c, i) => { const [label, cls] = tier(c.risk); return (
                   <tr key={c.id} className={c.id === sel.id ? "sel" : ""} onClick={() => setSelected(c.fips)}>
-                    <td><span className="rank">{i + 1}</span><b>{c.name}</b><small>{c.eta != null ? `${c.depot} crew · ${c.eta} min` : "no crew free"}</small></td>
+                    <td><span className="rank">{i + 1}</span><b>{c.name}</b><small>{fmt(c.exposure)} exposed · {c.eta != null ? `${c.eta} min away` : "no crew free"}</small></td>
                     <td><b className={cls}>{c.risk}</b><small>{c.delta > 0 ? "+" : ""}{c.delta} pts</small></td>
-                    <td><b>{fmt(c.exposure)}</b><small>{fmt(c.seniors)} aged 65+</small></td>
                     <td><span className={`pill ${cls}`}>{c.status === "out" ? "Power out" : label} <ChevronRight size={14} /></span></td>
                   </tr>); })}</tbody>
               </table></div>

@@ -276,3 +276,9 @@
   #root .sg .card{padding:14px}
   #root .sg .trust li{grid-template-columns:1fr 48px}#root .sg .trust .mono{display:none}
 }
+
+#root .sg .split{grid-template-columns:minmax(0,1.9fr) minmax(340px,1fr)}
+#root .sg .map-wrap{min-height:640px}
+#root .sg td:nth-child(3),#root .sg th:nth-child(3){display:table-cell}
+@media (max-width:980px){#root .sg .split{grid-template-columns:1fr}#root .sg .map-wrap{min-height:0;height:460px}}
+@media (max-width:640px){#root .sg .map-wrap{height:420px}}
