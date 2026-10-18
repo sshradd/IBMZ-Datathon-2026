@@ -1,3 +1,5 @@
 node_modules/
 .vite/
+.env.local
 dist/
+.vercel/

@@ -1,6 +1,6 @@
-# Publishing Relit
+# Publishing Surge
 
-Relit is a static site (Vite). With no server reachable it plays a recorded run of the demo outages from
+Surge is a static site (Vite). With no server reachable it plays a recorded run of the demo outages from
 `public/demo/uri.json`, labeled "Recorded demo", and keeps crews and assignments in the browser. With the
 API reachable it uses live data. Add `?demo=1` to the address to force the recorded demo.
 

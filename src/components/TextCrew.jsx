@@ -61,7 +61,7 @@ export default function TextCrew() {
   const a = unit?.assignment;
   const depot = s.ops?.depots.find(d => d.id === unit?.depot)?.name ?? unit?.depot;
   const when = a ? (a.depart_by_min === 0 ? "Leave now" : `Leave by ${departBy(now, a.depart_by_min)}`) : "";
-  const message = unit && a ? `Relit recommends: ${unit.name} to ${a.county} County from ${depot}. Travel ${mins(a.eta_min)}. ${when}.${note.trim() ? ` Note: ${note.trim()}` : ""}` : "";
+  const message = unit && a ? `Surge recommends: ${unit.name} to ${a.county} County from ${depot}. Travel ${mins(a.eta_min)}. ${when}.${note.trim() ? ` Note: ${note.trim()}` : ""}` : "";
 
   if (!open) return null;
 
@@ -121,7 +121,7 @@ export default function TextCrew() {
               <button className="btn" onClick={async () => s.say((await copyText(message)) ? "Message copied" : "Could not copy")} disabled={!message}><Copy size={18} /> Copy</button>
             </div>
             {tried && <p className="muted sm mt-xs">If Messages did not open (computers often cannot), use Copy and paste it into your texting app.</p>}
-            <p className="faint xs mt-s">Relit only drafts this. You send it from your own phone.</p>
+            <p className="faint xs mt-s">Surge only drafts this. You send it from your own phone.</p>
           </>
         )}
       </div>

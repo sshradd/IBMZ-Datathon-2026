@@ -8,6 +8,7 @@
     "build": "vite build"
   },
   "dependencies": {
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.446.0",
     "maplibre-gl": "^4.7.1",
     "react": "^18.3.1",

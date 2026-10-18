@@ -21,10 +21,10 @@ export default function Shell({ path, children }) {
   return (
     <div className="shell">
       <header className="top">
-        <a href="#/" className="brand" aria-label="Relit, home">
+        <a href="#/" className="brand" aria-label="Surge, home">
           <Logo />
-          <b>Relit</b>
-          <span className="tag">Outage response</span>
+          <b>Surge</b>
+          <span className="tag">Grid Resilience Command</span>
         </a>
         <nav className="tabs" aria-label="Main">
           {TABS.map(({ path: p, label }) => (

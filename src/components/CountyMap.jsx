@@ -1,6 +1,6 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import maplibregl from "maplibre-gl";
-import { Crosshair, Maximize2, Minus, Plus } from "lucide-react";
+import { Crosshair, Maximize2, Minus, Plus, Satellite } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { pct } from "../lib/format.js";
 
@@ -10,11 +10,13 @@ const TEXAS = [[-106.9, 25.6], [-93.3, 36.7]];
 const FIT_PADDING = { top: 120, bottom: 24, left: 24, right: 72 };
 // Esri Canvas basemaps: roads, water and places, no key needed, kept quiet so the risk colors carry the screen
 const TILE = set => [`https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/${set}/MapServer/tile/{z}/{y}/{x}`];
+const IMAGERY = ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"];
+const PLACES = ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"];
 const ATTRIBUTION = "Tiles © Esri — Esri, DeLorme, NAVTEQ";
 // fill strength per tier: no risk stays clear so the real map shows through
-const TIER_OPACITY = [0, 0.55, 0.72, 0.86];
+const TIER_OPACITY = [0, 0.62, 0.76, 0.88];
 // the one red ramp, same as the legend
-const TIER_COLOR = ["#e2e0d7", "#f0cdc6", "#d4766b", "#a3241f"];
+const TIER_COLOR = ["#1f2440", "#ffc233", "#ff8a3d", "#ff4d5e"];
 
 const el = (cls, html = "") => {
   const d = document.createElement("div");
@@ -49,6 +51,7 @@ export default function CountyMap({ latest, counties, layer, tiers, selected, on
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [hover, setHover] = useState(null);
+  const [sat, setSat] = useState(false);
   const select = useRef(onSelect);
   select.current = onSelect;
 
@@ -77,22 +80,26 @@ export default function CountyMap({ latest, counties, layer, tiers, selected, on
           style: {
             version: 8,
             sources: {
-              base: { type: "raster", tiles: TILE("World_Light_Gray_Base"), tileSize: 256, maxzoom: 15, attribution: ATTRIBUTION },
-              labels: { type: "raster", tiles: TILE("World_Light_Gray_Reference"), tileSize: 256, maxzoom: 15 },
+              base: { type: "raster", tiles: TILE("World_Dark_Gray_Base"), tileSize: 256, maxzoom: 15, attribution: ATTRIBUTION },
+              labels: { type: "raster", tiles: TILE("World_Dark_Gray_Reference"), tileSize: 256, maxzoom: 15 },
+              imagery: { type: "raster", tiles: IMAGERY, tileSize: 256, maxzoom: 15, attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
+              places: { type: "raster", tiles: PLACES, tileSize: 256, maxzoom: 15 },
               counties: { type: "geojson", data: geo, promoteId: "fips" },
               routes: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
             },
             layers: [
-              { id: "bg", type: "background", paint: { "background-color": "#e7e5dd" } },
+              { id: "bg", type: "background", paint: { "background-color": "#0e1124" } },
               { id: "base", type: "raster", source: "base", paint: { "raster-fade-duration": 150 } },
+              { id: "imagery", type: "raster", source: "imagery", layout: { visibility: "none" }, paint: { "raster-fade-duration": 150, "raster-brightness-max": 0.85 } },
               { id: "county-fill", type: "fill", source: "counties", paint: { "fill-color": ["coalesce", ["feature-state", "c"], "#a3241f"], "fill-opacity": ["coalesce", ["feature-state", "o"], 0] } },
-              { id: "county-line", type: "line", source: "counties", paint: { "line-color": "#7c7a72", "line-opacity": 0.7, "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.5, 8, 1.2] } },
-              { id: "county-sev", type: "line", source: "counties", paint: { "line-color": "#111113", "line-opacity": 0.5, "line-width": ["case", ["boolean", ["feature-state", "sev"], false], 0.9, 0] } },
+              { id: "county-line", type: "line", source: "counties", paint: { "line-color": "#c9cff0", "line-opacity": 0.38, "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.5, 8, 1.2] } },
+              { id: "county-sev", type: "line", source: "counties", paint: { "line-color": "#ffffff", "line-opacity": 0.55, "line-width": ["case", ["boolean", ["feature-state", "sev"], false], 0.9, 0] } },
               { id: "labels", type: "raster", source: "labels", paint: { "raster-opacity": 0.95 } },
-              { id: "county-sel", type: "line", source: "counties", paint: { "line-color": "#111113", "line-width": ["case", ["boolean", ["feature-state", "sel"], false], 3, 0] } },
+              { id: "places", type: "raster", source: "places", layout: { visibility: "none" }, paint: { "raster-opacity": 0.95 } },
+              { id: "county-sel", type: "line", source: "counties", paint: { "line-color": "#ffffff", "line-width": ["case", ["boolean", ["feature-state", "sel"], false], 3, 0] } },
               { id: "county-hit", type: "fill", source: "counties", paint: { "fill-color": "#000", "fill-opacity": 0.001 } },
-              { id: "route-plan", type: "line", source: "routes", filter: ["==", ["get", "planned"], 0], layout: { "line-cap": "round" }, paint: { "line-color": "#111113", "line-width": 3, "line-dasharray": [1.4, 1.6] } },
-              { id: "route-done", type: "line", source: "routes", filter: ["==", ["get", "planned"], 1], layout: { "line-cap": "round" }, paint: { "line-color": "#111113", "line-width": 3.5 } },
+              { id: "route-plan", type: "line", source: "routes", filter: ["==", ["get", "planned"], 0], layout: { "line-cap": "round" }, paint: { "line-color": "#ffa43d", "line-width": 3, "line-dasharray": [1.4, 1.6] } },
+              { id: "route-done", type: "line", source: "routes", filter: ["==", ["get", "planned"], 1], layout: { "line-cap": "round" }, paint: { "line-color": "#ffa43d", "line-width": 3.5 } },
             ],
           },
         });
@@ -149,6 +156,18 @@ export default function CountyMap({ latest, counties, layer, tiers, selected, on
       setReady(false);
     };
   }, []);
+
+  // satellite imagery replaces the dark street map; county outlines and risk colors stay on top
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const vis = (id, on) => map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+    vis("base", !sat);
+    vis("labels", !sat);
+    vis("imagery", sat);
+    vis("places", sat);
+    map.setPaintProperty("county-line", "line-opacity", sat ? 0.6 : 0.38);
+  }, [sat, ready]);
 
   // paint the counties
   useEffect(() => {
@@ -287,11 +306,12 @@ export default function CountyMap({ latest, counties, layer, tiers, selected, on
         <MapButton label="Zoom out" onClick={() => mapRef.current?.zoomOut()}><Minus /></MapButton>
         <MapButton label="Show all of Texas" onClick={() => mapRef.current?.fitBounds(TEXAS, { padding: FIT_PADDING })}><Maximize2 /></MapButton>
         <MapButton label="Show my location" onClick={locate}><Crosshair /></MapButton>
+        <MapButton label={sat ? "Show the street map" : "Show satellite imagery"} onClick={() => setSat(v => !v)} on={sat}><Satellite /></MapButton>
       </div>
     </div>
   );
 }
 
-const MapButton = ({ label, onClick, children }) => (
-  <button aria-label={label} onClick={onClick} className="map-btn">{children}</button>
+const MapButton = ({ label, onClick, children, on }) => (
+  <button aria-label={label} aria-pressed={on} title={label} onClick={onClick} className="map-btn">{children}</button>
 );

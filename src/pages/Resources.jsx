@@ -37,7 +37,7 @@ export default function Resources() {
           <div className="btn-row">
             <button className="btn primary" onClick={() => s.openDraft({
               eyebrow: "Resupply", title: "Request resupply", key: "resupply",
-              text: `Relit resupply request${latest ? ` ${dayClock(latest.as_of ?? latest.t)} CST` : ""}. Below target: ${below.map(i => `${i.label} short ${compact(i.below_by)} ${i.unit}`).join("; ")}. Please confirm quantities and delivery.`,
+              text: `Surge resupply request${latest ? ` ${dayClock(latest.as_of ?? latest.t)} CST` : ""}. Below target: ${below.map(i => `${i.label} short ${compact(i.below_by)} ${i.unit}`).join("; ")}. Please confirm quantities and delivery.`,
             })}>Request resupply</button>
           </div>
         </section>
@@ -76,7 +76,7 @@ function ItemRow({ i }) {
         <Num value={i.target ?? null} placeholder="set one" onCommit={v => s.setTarget(i.id, v)} label={`${i.label} target`} />
       </label>
       {i.below_by > 0 && (
-        <button className="btn sm" onClick={() => s.openDraft({ eyebrow: "Resupply", title: `Order ${i.label}`, key: "resupply", text: `Relit resupply: ${i.label}, need ${compact(i.below_by)} ${i.unit} (have ${compact(i.have)}, target ${compact(i.target ?? 0)}). Please confirm quantity and delivery.` })}>Order {compact(i.below_by)}</button>
+        <button className="btn sm" onClick={() => s.openDraft({ eyebrow: "Resupply", title: `Order ${i.label}`, key: "resupply", text: `Surge resupply: ${i.label}, need ${compact(i.below_by)} ${i.unit} (have ${compact(i.have)}, target ${compact(i.target ?? 0)}). Please confirm quantity and delivery.` })}>Order {compact(i.below_by)}</button>
       )}
     </li>
   );
