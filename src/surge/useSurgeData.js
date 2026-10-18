@@ -46,6 +46,22 @@ export function useSurgeData() {
       return { id: p.fips, fips: p.fips, name: p.county, risk: nowIdx, delta, exposure: people(p), seniors: p.seniors_exposed, eta: p.nearest?.eta_min ?? null, depot: p.nearest?.depot ?? null, status: p.status, out: p.out };
     });
 
+    // a quiet day flags few counties; still show the eight highest-risk ones so the ranking never looks empty
+    if (list.length < 8) {
+      const have = new Set(list.map(c => c.fips));
+      counties
+        .map((c, i) => ({ c, row: latest.counties[i] }))
+        .filter(({ c, row }) => row && !have.has(c.fips))
+        .sort((a, b) => b.row[0] - a.row[0])
+        .slice(0, 8 - list.length)
+        .forEach(({ c, row }) => {
+          let delta = 0;
+          const old = prev?.counties[idx.get(c.fips)];
+          if (old && prev !== history[history.length - 1]) delta = riskIndex(row[0], tiers, row[2] >= c.severe_at) - riskIndex(old[0], tiers, old[2] >= c.severe_at);
+          list.push({ id: c.fips, fips: c.fips, name: c.name, risk: riskIndex(row[0], tiers, row[2] >= c.severe_at), delta, exposure: Math.round(row[0] * c.pop), seniors: Math.round(row[0] * c.pop65), eta: null, depot: null, status: "clear", out: row[2] });
+        });
+    }
+
     const actions = plan.priorities.slice(0, 6).map(p => ({
       id: p.fips, kind: "crew", fips: p.fips, county: p.county, status: p.status,
       title: p.nearest ? `Send ${p.nearest.depot} crew to ${p.county}` : `Free a crew for ${p.county}`,
