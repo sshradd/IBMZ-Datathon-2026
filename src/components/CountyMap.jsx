@@ -50,7 +50,9 @@ function MapView({ tx, counties, selected, onSelect, mode = "Risk" }) {
   const mapRef = useRef(null);
   const loaded = useRef(false);
   const onSelectRef = useRef(onSelect);
+  const countiesRef = useRef(counties);
   onSelectRef.current = onSelect;
+  countiesRef.current = counties;
 
   const val = c =>
     mode === "Exposure" ? Math.min(100, c.exposure / 800) : mode === "Coverage" ? 100 - c.crewHours * 10 : c.risk;
@@ -114,7 +116,10 @@ function MapView({ tx, counties, selected, onSelect, mode = "Risk" }) {
         const el = document.createElement("div");
         el.style.cssText = "width:48px;height:48px;cursor:pointer";
         el.innerHTML = `<div class="pin ${c.risk >= 80 ? "hot" : ""}">⚡<span>${c.sites}</span></div>`;
-        el.addEventListener("click", () => onSelectRef.current(c));
+        el.addEventListener("click", () => {
+          const current = countiesRef.current.find(county => county.id === c.id);
+          if (current) onSelectRef.current(current);
+        });
         new mapboxgl.Marker({ element: el }).setLngLat(flip(centers[c.fips])).addTo(map);
       });
 
@@ -128,7 +133,7 @@ function MapView({ tx, counties, selected, onSelect, mode = "Risk" }) {
       });
       map.on("mouseleave", "county-fill", () => { map.getCanvas().style.cursor = ""; tip.remove(); });
       map.on("click", "county-fill", e => {
-        const c = counties.find(x => x.id === e.features[0].properties.id);
+        const c = countiesRef.current.find(x => x.id === e.features[0].properties.id);
         if (c) onSelectRef.current(c);
       });
 

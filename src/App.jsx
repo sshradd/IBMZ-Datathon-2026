@@ -105,13 +105,13 @@ export default function App() {
             <div className="map-wrap">
               <CountyMap counties={counties} selected={selected} onSelect={setSelected} mode={mode} />
               <ModeDock mode={mode} setMode={setMode} />
-              <div className="map-pop"><div><b>{sel.name} County</b><small>Risk {sel.delta >= 0 ? "increased" : "fell"} {sel.delta > 0 ? "+" : ""}{sel.delta}% in 90 min</small></div><strong style={{ color: riskColor(sel.risk) }}>{sel.risk}</strong></div>
+              <div className="map-pop"><div><b>{sel.name} County</b><small>Risk score · 24h forecast {sel.delta > 0 ? "+" : ""}{sel.delta}%</small></div><strong style={{ color: riskColor(sel.risk) }}>{sel.risk}</strong></div>
             </div>
             <table>
-              <thead><tr><th>RANK / COUNTY</th><th>RISK</th><th>EXPOSURE</th><th>ACTION</th></tr></thead>
+              <thead><tr><th>RANK / COUNTY</th><th>RISK SCORE</th><th>EXPOSURE</th><th>ACTION</th></tr></thead>
               <tbody>{ranked.map((c, i) => { const [label, cls] = tier(c.risk); return (
                 <tr key={c.id} className={c.id === sel.id ? "sel" : ""} onClick={() => setSelected(c)}>
-                  <td><span className="rank">{i + 1}</span><b>{c.name}</b><small>{c.crewHours} crew-hours</small></td>
+                  <td><span className="rank">{i + 1}</span><b>{c.name}</b><small>{c.sites} critical sites · {c.crewHours} crew-hours</small></td>
                   <td><b className={cls}>{c.risk}</b><small>24h forecast: {c.delta > 0 ? "+" : ""}{c.delta}%</small></td>
                   <td><b>{fmt(c.exposure)}</b><small>{c.sites} sites</small></td>
                   <td><span className={`pill ${cls}`}>{label} <ChevronRight size={14} /></span></td>
