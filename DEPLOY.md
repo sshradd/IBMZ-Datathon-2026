@@ -15,7 +15,7 @@ To publish a new build from this folder:
 ```bash
 npm install && npm run build
 rm -rf /tmp/gh && mkdir /tmp/gh && cp -R dist/. /tmp/gh && touch /tmp/gh/.nojekyll
-cd /tmp/gh && git init -q -b gh-pages && git add -A && git commit -qm "Publish build"
+cd /tmp/gh && git init -q && git checkout -q -b gh-pages && git add -A && git commit -qm "Publish build"
 git push -f https://github.com/sshradd/IBMZ-Datathon-2026.git gh-pages
 ```
 
