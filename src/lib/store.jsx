@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_QTY } from "./decisions.js";
+import { DemoEventSource, demoCall, enableDemo, isDemo, probeLive } from "./demo.js";
 
 const API = import.meta.env.VITE_API ?? "";
 const QUEUE_KEY = "uw-queue";
@@ -16,6 +17,7 @@ class ApiError extends Error {
 }
 
 async function call(method, path, body) {
+  if (isDemo()) return demoCall(method, path, body);
   const r = await fetch(`${API}${path}`, {
     method,
     headers: body === undefined ? undefined : { "Content-Type": "application/json" },
@@ -48,6 +50,9 @@ function writeQueue(q) {
   }
 }
 
+/** The same call the store makes, for pages that need one directly. */
+export const api = (method, path, body) => call(method, path, body);
+
 const Ctx = createContext(null);
 export const useStore = () => {
   const s = useContext(Ctx);
@@ -57,6 +62,7 @@ export const useStore = () => {
 
 export function StoreProvider({ children }) {
   const [latest, setLatest] = useState(null);
+  const [demo, setDemo] = useState(false); // true when playing the recorded demo because no server answered
   const [state, setState] = useState(null);
   const [counties, setCounties] = useState([]);
   const [scenarios, setScenarios] = useState([]);
@@ -172,6 +178,9 @@ export function StoreProvider({ children }) {
 
   // ---- boot: stream + restore ----
   useEffect(() => {
+    let cancelled = false;
+    let stop = () => {};
+    const boot = () => {
     setOnline(navigator.onLine);
     setQueued(readQueue().length);
     try {
@@ -189,7 +198,7 @@ export function StoreProvider({ children }) {
     call("GET", "/api/models").then(setModels).catch(() => {});
     void refreshPlan();
 
-    const es = new EventSource(`${API}/api/events`);
+    const es = isDemo() ? new DemoEventSource() : new EventSource(`${API}/api/events`);
     let timer = 0;
     const flushEvents = () => {
       window.clearTimeout(timer);
@@ -251,6 +260,19 @@ export function StoreProvider({ children }) {
       window.clearTimeout(timer);
       window.removeEventListener("online", up);
       window.removeEventListener("offline", down);
+    };
+    };
+    (async () => {
+      if (!(await probeLive(API))) {
+        await enableDemo();
+        if (cancelled) return;
+        setDemo(true);
+      }
+      if (!cancelled) stop = boot();
+    })();
+    return () => {
+      cancelled = true;
+      stop();
     };
   }, [refreshState, refreshOps, refreshPlan, schedulePlan, flush]);
 
@@ -370,10 +392,10 @@ export function StoreProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, setSelected, pendingUndo, assign, openAssign, closeAssign, composer, openComposer, closeComposer, toast, say, series, history, lastEventAt, assignedAt, draft, openDraft, closeDraft,
+      latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, setSelected, pendingUndo, assign, openAssign, closeAssign, composer, openComposer, closeComposer, demo, toast, say, series, history, lastEventAt, assignedAt, draft, openDraft, closeDraft,
       qty, setQty, start, startDemo, pause, resume, seek, dispatch, undo, setUnitCount, setStock, setTarget, setUnitStatus, sitrep, refreshPlan,
     }),
-    [latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, pendingUndo, assign, openAssign, closeAssign, composer, openComposer, closeComposer, toast, say, series, history, lastEventAt, assignedAt, draft, openDraft, closeDraft,
+    [latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, pendingUndo, assign, openAssign, closeAssign, composer, openComposer, closeComposer, demo, toast, say, series, history, lastEventAt, assignedAt, draft, openDraft, closeDraft,
       qty, setQty, start, startDemo, pause, resume, seek, dispatch, undo, setUnitCount, setStock, setTarget, setUnitStatus, sitrep, refreshPlan],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

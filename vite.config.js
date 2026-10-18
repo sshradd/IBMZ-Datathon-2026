@@ -6,6 +6,7 @@ import react from "@vitejs/plugin-react";
 const API = process.env.VITE_PROXY ?? "http://127.0.0.1:8010";
 
 export default defineConfig({
+  base: "./", // relative paths, so the build works from any folder (GitHub Pages serves it under /<repo>/)
   plugins: [react()],
   server: { proxy: { "/api": { target: API, changeOrigin: true } } },
 });

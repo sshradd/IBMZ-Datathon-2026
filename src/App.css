@@ -1,4 +1,4 @@
-/* Paper-and-ink styling, same visual language as the Uri Watch responder console:
+/* Paper-and-ink styling for Relit:
    warm paper ground with a dot texture, near-black primary button, white outlined secondary buttons,
    Inter Tight for words, JetBrains Mono for small labels, one red emphasis word per headline.
    Risk is one red ramp. Amber is reserved for weather alerts. Green means done. */
@@ -59,7 +59,7 @@ b{font-weight:600}small{font-size:13.5px;color:var(--ink-2)}
 .shell{min-height:100dvh}
 .top{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:12px;height:var(--hh);padding:0 12px;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:10px;flex:none}
-.brand b{display:none;font-size:18px;font-weight:700;letter-spacing:.08em}
+.brand b{display:none;font-size:22px;font-weight:700;letter-spacing:-.04em}
 .brand .tag{display:none}
 .logo{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:var(--ink);color:var(--bg);flex:none}
 .tabs{display:none;align-items:center;gap:4px}

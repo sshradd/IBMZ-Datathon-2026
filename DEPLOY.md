@@ -1,19 +1,35 @@
-# Deploying the front end to Vercel
+# Publishing Relit
 
-The site is static (Vite). It needs the Uri Watch API running somewhere public, because the API is
-stateful (a live event stream, the replay session and saved crew state) and cannot run as Vercel
-serverless functions. Host the API on any server, then:
+Relit is a static site (Vite). With no server reachable it plays a recorded run of the demo outages from
+`public/demo/uri.json`, labeled "Recorded demo", and keeps crews and assignments in the browser. With the
+API reachable it uses live data. Add `?demo=1` to the address to force the recorded demo.
 
-1. In Vercel, set the environment variable `VITE_API` to the API's public URL (see `.env.example`).
-2. On the API, allow the site's origin for CORS (the FastAPI app in `backend/uriwatch/api.py`
-   allows `http://localhost:3000` today; add the Vercel URL).
-3. Log in and deploy from this folder:
+## GitHub Pages (what teammates look at)
+
+The built site lives on the `gh-pages` branch. Turn it on once, as a repo admin:
+Settings, Pages, Source "Deploy from a branch", branch `gh-pages`, folder `/ (root)`.
+The address is https://sshradd.github.io/IBMZ-Datathon-2026/
+
+To publish a new build from this folder:
 
 ```bash
-npx vercel login
-npx vercel --prod -e VITE_API=https://your-api-host.example.com
+npm install && npm run build
+rm -rf /tmp/gh && mkdir /tmp/gh && cp -R dist/. /tmp/gh && touch /tmp/gh/.nojekyll
+cd /tmp/gh && git init -q -b gh-pages && git add -A && git commit -qm "Publish build"
+git push -f https://github.com/sshradd/IBMZ-Datathon-2026.git gh-pages
 ```
 
-`vercel.json` already sets the build (`npm run build`, output `dist`).
+## Re-recording the demo
 
-Without a reachable API the deployed site loads but shows no data.
+With the backend running (`cd backend && ../.venv/bin/uvicorn uriwatch.api:app --port 8010`):
+
+```bash
+node scripts/record-demo.mjs     # writes public/demo/uri.json, takes a few minutes
+```
+
+Record again whenever the model or API changes, so the Pages demo shows the new scores.
+
+## With a live API
+
+Set `VITE_API` to the API's public URL (see `.env.example`) and allow the site's origin in the API's CORS
+list. The site then uses live data and falls back to the recorded demo only when the API cannot be reached.

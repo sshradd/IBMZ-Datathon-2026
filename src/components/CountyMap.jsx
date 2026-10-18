@@ -61,7 +61,7 @@ export default function CountyMap({ latest, counties, layer, tiers, selected, on
     let map = null;
     (async () => {
       try {
-        const geo = await fetch("/tx-counties.json").then(r => r.json());
+        const geo = await fetch(`${import.meta.env.BASE_URL}tx-counties.json`).then(r => r.json());
         if (dead || !host.current) return;
         map = new maplibregl.Map({
           container: host.current,

@@ -14,7 +14,7 @@ export function smsSummary(s) {
   const waits = units.map(u => leaveInMin(u, assignedAt, nowMs)).filter(v => v != null);
   const next = waits.length ? Math.min(...waits) : null;
   const text =
-    `Uri Watch ${clock(now)}: ${act.length} ${act.length === 1 ? "county needs" : "counties need"} action. Top: ${top || "none"}. ` +
+    `Relit ${clock(now)}: ${act.length} ${act.length === 1 ? "county needs" : "counties need"} action. Top: ${top || "none"}. ` +
     `${units.length} ${units.length === 1 ? "crew" : "crews"} assigned${uncovered.length ? `, ${uncovered.length} ${uncovered.length === 1 ? "county" : "counties"} without one` : ""}.` +
     (next != null ? ` Next crew ${next === 0 ? "leaves now" : `leaves in ${mins(next)}`}.` : "") +
     " Recommendations only.";

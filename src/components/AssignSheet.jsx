@@ -73,7 +73,7 @@ export default function AssignSheet() {
       const detail = r.eta != null ? ` (${mins(r.eta)}${r.when ? `, ${r.when}` : ""})` : "";
       return `${r.depot ? `${r.depot} depot: ` : ""}send ${crewsText(r.o)} to ${r.name} County${detail}.`;
     });
-    return `Uri Watch: ${parts.join(" ")}${note.trim() ? ` Note: ${note.trim()}` : ""}`;
+    return `Relit: ${parts.join(" ")}${note.trim() ? ` Note: ${note.trim()}` : ""}`;
   }, [rows, note]);
 
   if (!open) return null;

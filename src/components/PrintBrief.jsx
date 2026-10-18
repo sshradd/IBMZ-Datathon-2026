@@ -16,7 +16,7 @@ export default function PrintBrief() {
   const leave = p => (p.depart_by_min === 0 ? "leave now" : `leave in ${mins(p.depart_by_min)}`);
   return (
     <section className="print-brief" aria-hidden>
-      <h1>Uri Watch field brief</h1>
+      <h1>Relit field brief</h1>
       <p>{dayClock(now)} CST · {need.length} counties need action · {latest.live ? "live data" : `${compact(latest.out_total)} customers out`} · recommendations only, nothing was dispatched.</p>
 
       <h2>Priority counties</h2>

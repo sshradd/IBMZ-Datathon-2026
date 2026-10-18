@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { smsSummary } from "../lib/brief.js";
 import { useSetting } from "../lib/settings.js";
-import { useStore } from "../lib/store.jsx";
+import { api, useStore } from "../lib/store.jsx";
 
 const EVENT = { uri: "Feb 2021 outages", elliott: "Dec 2022 outages", ice2023: "Feb 2023 outages", heat2023: "Aug 2023 outages" };
 
@@ -11,7 +11,7 @@ export default function More() {
   const [model, setModel] = useState(null);
 
   useEffect(() => {
-    fetch("/api/models").then(r => r.json()).then(m => setModel(m.honest)).catch(() => {});
+    api("GET", "/api/models").then(m => setModel(m.honest)).catch(() => {});
   }, []);
 
   const ts = model?.metrics.tier_stats;

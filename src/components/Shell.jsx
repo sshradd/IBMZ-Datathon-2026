@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { CloudOff, Ellipsis, Map as MapIcon, Package, Undo2, Users, Zap } from "lucide-react";
+import { CloudOff, Ellipsis, Map as MapIcon, Package, Undo2, Users } from "lucide-react";
 import { UNDO_MS, useStore } from "../lib/store.jsx";
 import { clock } from "../lib/format.js";
+import Logo from "./Logo.jsx";
 import AlertBanner from "./AlertBanner.jsx";
 import AssignSheet from "./AssignSheet.jsx";
 import DraftSheet from "./DraftSheet.jsx";
@@ -20,10 +21,10 @@ export default function Shell({ path, children }) {
   return (
     <div className="shell">
       <header className="top">
-        <a href="#/" className="brand" aria-label="CATCH, home">
-          <span className="logo"><Zap size={20} aria-hidden /></span>
-          <b>CATCH</b>
-          <span className="tag">Grid Resilience Command</span>
+        <a href="#/" className="brand" aria-label="Relit, home">
+          <Logo />
+          <b>Relit</b>
+          <span className="tag">Outage response</span>
         </a>
         <nav className="tabs" aria-label="Main">
           {TABS.map(({ path: p, label }) => (
@@ -57,7 +58,7 @@ export default function Shell({ path, children }) {
 
 /** What the data is right now: live or recorded, the statewide temperature, weather alerts, connection. No controls. */
 function Playback() {
-  const { latest, state, connected, online, queued } = useStore();
+  const { latest, state, connected, online, queued, demo } = useStore();
   const live = state?.scenario === "live";
   const temp = latest?.diagnose.state.temp_f_mean;
   const nws = latest?.alerts?.events.filter(e => e.relevant).length ?? 0;
@@ -69,6 +70,7 @@ function Playback() {
           <p className="pb-live"><i className="live-dot" /> Live <span className="mono faint">{latest?.as_of ? clock(latest.as_of) : "waiting for first poll"}</span></p>
         ) : null}
       </div>
+      {demo && <span className="chip chip-amber" title="No server is connected, so this is a recorded run of the demo outages. Crews and assignments are kept in this browser only.">Recorded demo</span>}
       {typeof temp === "number" && <p className="pb-temp" title="Statewide mean temperature">{temp.toFixed(0)}°F</p>}
       {nws > 0 && <span className="chip chip-amber hide-s">NWS {nws}</span>}
       {(!online || queued > 0) && (
