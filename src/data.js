@@ -37,9 +37,8 @@ export const facilityStats = [
 
 // People who can receive an assignment. Backend: replace with your real roster.
 export const people = [
-  { id: "p1", name: "Maria Lopez",   role: "Crew 07 lead",        phone: "+1 555-0101" },
-  { id: "p2", name: "James Carter",  role: "Crew 03 lead",        phone: "+1 555-0102" },
-  { id: "p3", name: "Aisha Khan",    role: "Warming center coordinator", phone: "+1 555-0103" },
-  { id: "p4", name: "Tom Nguyen",    role: "Generator team",      phone: "+1 555-0104" },
-  { id: "p5", name: "Dana Whitfield", role: "County emergency manager", phone: "+1 555-0105" },
+  { id: "p1", name: "Vaishali Subash",  role: "Crew 07 lead",               phone: "+1 555-0101" },
+  { id: "p2", name: "Shraddha Subash",  role: "Crew 03 lead",               phone: "+1 555-0102" },
+  { id: "p3", name: "Suhani Rana",      role: "Warming center coordinator", phone: "+1 555-0103" },
+  { id: "p4", name: "Siddharth Deepak", role: "Generator team",             phone: "+1 555-0104" },
 ];

@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { Zap, Download, Menu, AlertTriangle, Clock, Map as MapIcon, Users, Hospital, Truck,
-  Building2, Droplets, ShieldCheck, Radio, Printer, ChevronRight, ArrowRight, Filter, Activity, FileText, Eye, RefreshCw } from "lucide-react";
+import { Zap, Download, Clock, Map as MapIcon, Users, Hospital, Truck,
+  Building2, Droplets, ShieldCheck, ChevronRight, Activity, FileText, Eye } from "lucide-react";
 import CountyMap, { riskColor } from "./components/CountyMap.jsx";
+import ModeDock from "./components/AppDock.jsx";
 import { counties, summary, actions, facilityStats, people } from "./data.js";
 import { allocate, slotLabel } from "./lib/dispatch.js";
-import { buildSms, sendSms, downloadBriefPdf } from "./lib/briefing.js";
+import { downloadBriefPdf } from "./lib/briefing.js";
 import { sendAssignment, findCounty, buildBlurb, makeAssignmentPdf } from "./lib/assign.js";
 
 const fmt = n => (n >= 1000 ? (n / 1000).toFixed(1).replace(".0", "") + "k" : n);
@@ -16,7 +17,6 @@ export default function App() {
   const [selected, setSelected] = useState(null);
   const [assigned, setAssigned] = useState({}); // actionId -> { personIds, note, fileName }
   const [openId, setOpenId] = useState(null);
-  const [sms, setSms] = useState(null);
 
   const ranked = useMemo(() => [...counties].sort((a, b) => b.risk - a.risk), []);
   const { plan, crewsCommitted, crewsLeft } = useMemo(
@@ -27,20 +27,12 @@ export default function App() {
   return (
     <div className="app">
       <header className="top">
-        <div className="brand"><div className="logo"><Zap size={22} /></div><b>CATCH</b><span>Grid Resilience Command</span></div>
+        <div className="brand"><div className="logo"><Zap size={22} /></div><b>SURGE</b><span>Grid Resilience Command</span></div>
         <div className="top-r">
           <span className="live"><i /> LIVE</span>
-          <button className="icon-btn"><Menu size={18} /></button>
           <button className="btn primary" onClick={() => downloadBriefPdf(summary, ranked, plan)}><Download size={18} /> Generate briefing</button>
         </div>
       </header>
-
-      <section className="status">
-        <div className="st-ic"><AlertTriangle /></div>
-        <div><small>REGIONAL GRID STATUS</small><h2>{summary.status}</h2></div>
-        <p>{summary.note}</p>
-        <div className="st-r"><Clock size={16} /> Updated {summary.updated}<span className="sep" />Model confidence <b>{summary.confidence}%</b></div>
-      </section>
 
       <main>
         <small className="eyebrow">OPERATIONS OVERVIEW</small>
@@ -62,15 +54,19 @@ export default function App() {
         </div>
 
         <section className="card">
-          <div className="card-h"><div><h3>County risk ranking</h3><p>Prioritized by predicted harm per crew-hour</p></div>
-            <button className="btn ghost"><Filter size={16} /> Filter</button></div>
+          <div className="card-h"><div><h3>County risk ranking</h3><p>Prioritized by predicted harm per crew-hour</p></div></div>
+          <div className="map-bar">
+            <div className="key">
+              <span className="key-title">{mode} level</span>
+              {[["#5fd3b0", "Low · under 50"], ["#ffc247", "Moderate · 50–64"], ["#ff8a3d", "High · 65–79"], ["#ff4d4d", "Critical · 80+"]].map(([c, l]) =>
+                <span key={l} className="key-item"><i style={{ background: c }} />{l}</span>)}
+            </div>
+          </div>
           <div className="split">
             <div className="map-wrap">
-              <div className="seg">{["Risk", "Exposure", "Coverage"].map(m =>
-                <button key={m} className={m === mode ? "on" : ""} onClick={() => setMode(m)}>{m}</button>)}</div>
               <CountyMap counties={counties} selected={selected} onSelect={setSelected} mode={mode} />
+              <ModeDock mode={mode} setMode={setMode} />
               <div className="map-pop"><div><b>{sel.name} County</b><small>Risk {sel.delta >= 0 ? "increased" : "fell"} {sel.delta > 0 ? "+" : ""}{sel.delta}% in 90 min</small></div><strong style={{ color: riskColor(sel.risk) }}>{sel.risk}</strong></div>
-              <div className="legend">Lower risk {["#b4d1c7", "#e2b865", "#dc8a4f", "#c9473f"].map(c => <i key={c} style={{ background: c }} />)} Critical</div>
             </div>
             <table>
               <thead><tr><th>RANK / COUNTY</th><th>RISK</th><th>EXPOSURE</th><th>ACTION</th></tr></thead>
@@ -87,7 +83,7 @@ export default function App() {
 
         <section className="card">
           <div className="card-h"><div><h3>Recommended dispatch <span className="badge"><Activity size={13} /> OPTIMIZED</span></h3>
-            <p>Ordered by harm prevented per crew-hour</p></div><a className="link">View plan <ArrowRight size={16} /></a></div>
+            <p>Ordered by harm prevented per crew-hour</p></div></div>
           {plan.map((a, i) => {
             const done = assigned[a.id];
             const names = done ? done.personIds.map(id => people.find(p => p.id === id)?.name).filter(Boolean) : [];
@@ -116,24 +112,11 @@ export default function App() {
         </section>
 
         <section className="card">
-          <div className="card-h"><div><h3>Critical-facility exposure</h3><p>Public aggregate data · verified 13:45</p></div>
-            <a className="link">Explore facilities <ArrowRight size={16} /></a></div>
+          <div className="card-h"><div><h3>Critical-facility exposure</h3><p>Public aggregate data · verified 13:45</p></div></div>
           <div className="fac">{facilityStats.map(f => { const I = facIcons[f.key]; return (
             <div key={f.key}><span className={`fi ${f.key}`}><I size={20} /></span><p><b>{f.n}</b> {f.label}</p><small>{f.sub}</small></div>); })}</div>
         </section>
 
-        <section className="card offline">
-          <div className="off-ic"><Radio size={40} /></div>
-          <div><small className="eyebrow">BUILT FOR DEGRADED COMMS</small><h3>Briefings that work offline</h3>
-            <p>Export a one-page field brief or send an SMS-length action summary.</p></div>
-          <div className="off-btns">
-            <button className="btn ghost" onClick={() => downloadBriefPdf(summary, ranked, plan)}><Printer size={18} /> Print brief</button>
-            <button className="btn primary" onClick={() => setSms(buildSms(summary, ranked, plan))}><Radio size={18} /> SMS summary</button>
-          </div>
-        </section>
-        {sms && <div className="sms"><p>{sms}</p><small>{sms.length} chars</small>
-          <button className="btn ghost" onClick={() => navigator.clipboard.writeText(sms)}>Copy</button>
-          <button className="btn primary" onClick={() => sendSms(sms)}>Open in Messages</button></div>}
       </main>
     </div>
   );
@@ -190,7 +173,6 @@ function AssignPanel({ action, people, existing, onCancel, onSent }) {
 
       <div className="ap-head">
         <span>Description</span>
-        <button type="button" className="linkbtn" onClick={() => setNote(buildBlurb({ action, county, summary }))}><RefreshCw size={13} /> Regenerate</button>
       </div>
       <textarea rows={7} value={note} onChange={e => setNote(e.target.value)} placeholder="What should they do, and where?" />
 

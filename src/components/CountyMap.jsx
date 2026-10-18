@@ -4,9 +4,9 @@ import mapboxgl from "mapbox-gl";
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
 // Lower risk -> critical (App.jsx imports this for the popup number color)
-export const riskColor = r => (r >= 80 ? "#e5584d" : r >= 65 ? "#f08a4b" : r >= 50 ? "#f2c14e" : "#8fd1bd");
+export const riskColor = r => (r >= 80 ? "#ff4d4d" : r >= 65 ? "#ff8a3d" : r >= 50 ? "#ffc247" : "#5fd3b0");
 
-// Mapbox uses [lng, lat]; centers are [lat, lng], so we flip.
+// Mapbox uses [lng, lat]; data.js centers are [lat, lng], so we flip.
 const flip = ([lat, lng]) => [lng, lat];
 const TX_BOUNDS = [[-106.7, 25.8], [-93.5, 36.6]]; // whole state
 const FIT = { padding: 24, duration: 800 };
@@ -91,7 +91,10 @@ function MapView({ tx, counties, selected, onSelect, mode = "Risk" }) {
     mapRef.current = map;
 
     map.on("load", () => {
-      try { map.setPaintProperty("satellite", "raster-brightness-max", 0.6); } catch {}
+      try {
+        map.setPaintProperty("satellite", "raster-brightness-max", 0.55);
+        map.setPaintProperty("satellite", "raster-saturation", -0.35);
+      } catch {}
 
       map.addSource("counties", { type: "geojson", data: countiesGeo() });
       map.addLayer({ id: "county-fill", type: "fill", source: "counties",
@@ -103,9 +106,9 @@ function MapView({ tx, counties, selected, onSelect, mode = "Risk" }) {
       map.addSource("route", { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates: route } } });
       map.addSource("route-done", { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates: route.slice(0, 2) } } });
       map.addLayer({ id: "route-dash", type: "line", source: "route",
-        layout: { "line-cap": "round" }, paint: { "line-color": "#fff", "line-width": 4, "line-dasharray": [0.5, 2.5] } });
+        layout: { "line-cap": "round" }, paint: { "line-color": "#ffe2c7", "line-width": 4, "line-dasharray": [0.5, 2.5] } });
       map.addLayer({ id: "route-solid", type: "line", source: "route-done",
-        layout: { "line-cap": "round" }, paint: { "line-color": "#f5a623", "line-width": 5 } });
+        layout: { "line-cap": "round" }, paint: { "line-color": "#ff8a3d", "line-width": 5 } });
 
       counties.forEach(c => {
         const el = document.createElement("div");

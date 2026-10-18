@@ -1,0 +1,24 @@
+/* Dock styling: midnight glass + ember, matches App.css variables */
+.dock-wrap{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);z-index:1000;max-width:100%}
+.dock-outer{display:flex;align-items:flex-end;max-width:100%;margin:0 8px;overflow-x:auto;scrollbar-width:none}
+.dock-outer::-webkit-scrollbar{display:none}
+.dock-panel{display:flex;gap:16px;align-items:flex-end;width:fit-content;margin:0 auto;padding:0 16px 12px;
+  background:rgba(12,12,32,.62);border:1px solid var(--line);border-radius:var(--r-lg);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);
+  box-shadow:var(--sheen),0 18px 50px rgba(0,0,0,.45)}
+.dock-item{position:relative;display:inline-flex;align-items:center;justify-content:center;aspect-ratio:1/1;border-radius:50%;
+  background:var(--glass-2);border:1px solid var(--line);cursor:pointer;transition:background .15s,border-color .15s}
+.dock-item:hover,.dock-item:focus-visible{background:var(--ember-soft);border-color:var(--ember-line);outline:none}
+.dock-icon{display:flex;align-items:center;justify-content:center}
+.dock-icon svg{width:100%;height:100%;color:#fff}
+.dock-item:hover .dock-icon svg,.dock-item:focus-visible .dock-icon svg{color:var(--ember-hi)}
+.dock-label{position:absolute;top:-24px;left:50%;width:fit-content;white-space:pre;padding:3px 12px;font-size:13px;color:#fff;
+  background:rgba(12,12,32,.85);border:1px solid var(--line);border-radius:var(--pill)}
+
+/* currently selected map layer */
+.dock-item.active{background:var(--ember-grad);border-color:transparent;box-shadow:var(--ember-glow)}
+.dock-item.active .dock-icon svg{color:#1c0d06}
+.dock-item.active:hover .dock-icon svg{color:#1c0d06}
+
+/* dock sits bottom-center of the map, so the county popup moves to the top-left */
+.map-wrap .map-pop{top:20px;bottom:auto;left:20px}
