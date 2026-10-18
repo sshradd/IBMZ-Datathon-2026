@@ -1,0 +1,24 @@
+# Internal handoff — contains VM host/user/key path; not for the public repo
+CLAUDE.md
+
+# Large data (regenerate with scripts/)
+data/
+*.csv
+raw/
+cache/
+
+# Model weights (large); keep scaling.json + test_predictions.npz for the replay
+*.safetensors
+models/
+model/model/
+trainer_output/
+
+# Secrets
+*.pem
+*.key
+
+# Python / Jupyter cruft
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store

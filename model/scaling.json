@@ -1,0 +1,38 @@
+{
+  "y_mean": 0.05547552539883488,
+  "y_std": 0.2886072600123538,
+  "columns": [
+    "y",
+    "temp_c",
+    "wind_ms",
+    "gust_ms",
+    "precip_mm",
+    "snow_cm",
+    "grid_demand_mwh"
+  ],
+  "stats": {
+    "mean": {
+      "y": 0.05547552539883488,
+      "temp_c": 19.285962840171294,
+      "wind_ms": 4.093452889729244,
+      "gust_ms": 7.943402317309022,
+      "precip_mm": 0.09384825252106646,
+      "snow_cm": 0.0016474089998618595,
+      "grid_demand_mwh": 43462.28127214154
+    },
+    "std": {
+      "y": 0.2886072600123538,
+      "temp_c": 9.354409320101809,
+      "wind_ms": 1.9371989833329,
+      "gust_ms": 3.3936019124342374,
+      "precip_mm": 0.6081504415886937,
+      "snow_cm": 0.03666738101989116,
+      "grid_demand_mwh": 9192.748658038368
+    }
+  },
+  "context_len": 512,
+  "pred_len": 96,
+  "target_transform": "log1p(pct_out)",
+  "model_path": "ibm-granite/granite-timeseries-ttm-r2",
+  "synthetic": false
+}
