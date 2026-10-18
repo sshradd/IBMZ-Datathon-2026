@@ -1,16 +1,19 @@
 // The SURGE overview page: the layout, sections and Assign panel from the team's front end, running on the live
 // (or recorded) feed instead of typed-in numbers. Every number on it comes from the model or the ops state.
-import { Activity, AlertTriangle, ArrowRight, ChevronRight, Clock, CloudSnow, Download, Eye, FileText, Filter, Map as MapIcon, Menu, Printer, Radio, RefreshCw, Thermometer, Truck, Users, Zap } from "lucide-react";
+import { Volume2, Activity, AlertTriangle, ArrowRight, ChevronRight, Clock, CloudLightning, CloudSnow, Download, Eye, FileText, Map as MapIcon, Menu, PersonStanding, Printer, Radar, Radio, RefreshCw, ShieldAlert, Thermometer, Truck, Users, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AlertBanner from "../components/AlertBanner.jsx";
 import AssignSheet from "../components/AssignSheet.jsx";
+import Decision from "../components/Decision.jsx";
+import FeedStrip from "../components/FeedStrip.jsx";
+import Statewide from "../components/Statewide.jsx";
 import DraftSheet from "../components/DraftSheet.jsx";
 import { Toast, UndoBar } from "../components/Shell.jsx";
 import TextCrew from "../components/TextCrew.jsx";
 import Logo from "../components/Logo.jsx";
-import { DEFAULT_QTY } from "../lib/decisions.js";
-import { clock, dayClock } from "../lib/format.js";
-import { useStore } from "../lib/store.jsx";
+import { DEFAULT_QTY, orderOf, qtyOf } from "../lib/decisions.js";
+import { clock, dayClock, departBy } from "../lib/format.js";
+import { api, useStore } from "../lib/store.jsx";
 import { buildBlurb, findCounty, makeAssignmentPdf, sendAssignment } from "./assign.js";
 import { buildSms, downloadBriefPdf, sendSms } from "./briefing.js";
 import SurgeMap from "./SurgeMap.jsx";
@@ -19,12 +22,26 @@ import "./surge.css";
 
 const fmt = n => (n >= 1000 ? (n / 1000).toFixed(1).replace(".0", "") + "k" : n);
 const tier = r => (r >= 80 ? ["Act now", "crit"] : r >= 65 ? ["Prepare", "warn"] : r >= 50 ? ["Monitor", "mod"] : ["Low", "ok"]);
+const MODES = [
+  ["risk", "Risk", ShieldAlert],
+  ["exposure", "Customers out", Users],
+  ["coverage", "Crew coverage", Radar],
+  ["nws", "Weather alerts", CloudLightning],
+  ["seniors", "Aged 65+", PersonStanding],
+];
+const HORIZONS = [["p24", "24 h"], ["p12", "12 h"], ["p6", "6 h"]];
+const EVENT = { uri: "Feb 2021", elliott: "Dec 2022", ice2023: "Feb 2023", heat2023: "Aug 2023" };
 const weatherIcons = { temp: Thermometer, demand: Zap, shed: Activity, nws: CloudSnow };
 
 export default function SurgePage() {
   const s = useStore();
   const data = useSurgeData();
-  const [mode, setMode] = useState("Risk");
+  const [mode, setMode] = useState("risk");
+  const [hz, setHz] = useState("p24");
+  const [model, setModel] = useState(null);
+  const ready = !!s.latest; // the store decides live or recorded before the first forecast arrives
+  useEffect(() => { if (ready) api("GET", "/api/models").then(m => setModel(m.honest)).catch(() => {}); }, [ready]);
+  const layer = mode === "risk" ? hz : mode === "exposure" ? "out" : mode;
   const [selected, setSelected] = useState(null);
   const [assigned, setAssigned] = useState({}); // actionId -> { personIds, note, fileName, mode }
   const [openId, setOpenId] = useState(null);
@@ -71,6 +88,23 @@ export default function SurgePage() {
   }
 
   const { counties, actions, summary, weather, people, cov } = data;
+  const idx = s.counties.findIndex(c => c.fips === sel.fips);
+  const focusCounty = s.counties[idx];
+  const focusPriority = s.plan?.priorities.find(p => p.fips === sel.fips);
+  const avail = { line: s.plan?.totals.line.available ?? 0, shelter: s.plan?.totals.shelter.available ?? 0, outreach: s.plan?.totals.outreach.available ?? 0 };
+  const assignOne = () => {
+    const o = focusPriority ? orderOf(focusPriority, s.qty) : { fips: sel.fips, ...qtyOf(s.qty, sel.fips) };
+    if (o.line + o.shelter + o.outreach > 0) s.openAssign([o]);
+  };
+  const speak = () => {
+    if (!("speechSynthesis" in window)) return s.say("Reading aloud is not available on this device");
+    window.speechSynthesis.cancel();
+    const line = p => `${p.county} County. ${p.status === "out" ? "Power is out." : `${p.status} level.`} ` + (p.nearest ? `${p.nearest.depot} crew is ${p.nearest.eta_min} minutes away. ${p.depart_by_min === 0 ? "Leave now." : `Leave by ${departBy(data.now, p.depart_by_min)}.`}` : "No crew is free.");
+    const pr = s.plan?.priorities ?? [];
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(pr.length ? pr.slice(0, 3).map(line).join(" Next. ") : "No county needs a crew right now."));
+  };
+  const modeList = data.live ? MODES.filter(([id]) => id !== "exposure") : MODES;
+  const ts = model?.metrics?.tier_stats;
   const ranked = counties;
   const covered = new Set(cov.covered.map(p => p.fips));
   const pct = summary.crewsTotal ? Math.round((summary.crewsAvailable / summary.crewsTotal) * 100) : 0;
@@ -95,48 +129,56 @@ export default function SurgePage() {
       </section>
 
       <main>
-        <small className="eyebrow">OPERATIONS OVERVIEW</small>
-        <h1>{hello}, Regional Ops</h1>
-        <p className="sub">Prioritized actions as of {dayClock(data.now)} CST</p>
+        <div className="titlerow"><h1>Operations overview</h1><span>As of {dayClock(data.now)} CST</span></div>
 
         <div className="kpis">
-          <Kpi icon={<MapIcon />} tone="red" label="Counties at risk" value={summary.flagged}>
+          <Kpi icon={<MapIcon size={15} />} label="Counties at risk" value={summary.flagged}>
             <span><b className="red">{summary.act} critical</b> · {summary.elevated} elevated</span>
           </Kpi>
-          <Kpi icon={<Users />} tone="amber" label="People exposed" value={fmt(summary.peopleExposed)}>
+          <Kpi icon={<Users size={15} />} label="People exposed" value={fmt(summary.peopleExposed)}>
             {data.live ? <span>live mode has no county outage feed</span> : <span><b className="red">{fmt(summary.customersOut)}</b> customers out now</span>}
           </Kpi>
-          <Kpi icon={<Users />} tone="blue" label="Seniors exposed" value={fmt(summary.seniors)}>
+          <Kpi icon={<PersonStanding size={15} />} label="Seniors exposed" value={fmt(summary.seniors)}>
             <span>aged 65+ in counties likely to go severe</span>
           </Kpi>
-          <Kpi icon={<Truck />} tone="green" label="Response capacity" value={`${summary.crewsAvailable} / ${summary.crewsTotal}`} ring={pct}>
-            <span>Line crews available now</span>
+          <Kpi icon={<Truck size={15} />} label="Response capacity" value={`${summary.crewsAvailable} / ${summary.crewsTotal}`} ring={pct}>
+            <span>line crews available now</span>
           </Kpi>
         </div>
 
         <section className="card">
           <div className="card-h"><div><h3>County risk ranking</h3><p>Ranked by the model's 24 hour outage risk</p></div>
-            <button className="btn ghost" onClick={() => setMode(mode === "Coverage" ? "Risk" : "Coverage")}><Filter size={16} /> {mode === "Coverage" ? "Show risk" : "Show coverage"}</button></div>
+            <button className="btn ghost" onClick={speak}><Volume2 size={16} /> Read top three</button></div>
           <div className="risk-legend"><span>RISK LEVEL</span>
             {[["#3ed1a8", "Low · under 50"], ["#ffc233", "Moderate · 50–64"], ["#ff8a3d", "High · 65–79"], ["#ff4d5e", "Critical · 80+"]].map(([c, t]) => <em key={t}><i style={{ background: c }} />{t}</em>)}
           </div>
           <div className="split">
             <div className="map-wrap">
-              <div className="seg">{["Risk", "Exposure", "Coverage"].map(m =>
-                <button key={m} className={m === mode ? "on" : ""} onClick={() => setMode(m)}>{m}</button>)}</div>
-              <SurgeMap mode={mode} selected={selected} onSelect={setSelected} cov={cov} />
-              <div className="map-pop"><div><b>{sel.name} County</b><small>{sel.delta === 0 ? "Risk steady" : `Risk ${sel.delta > 0 ? "rose" : "fell"} ${sel.delta > 0 ? "+" : ""}${sel.delta} points`} in 3 h</small></div><strong style={{ color: riskColor(sel.risk) }}>{sel.risk}</strong></div>
+              {mode === "risk" && <div className="hz" role="group" aria-label="Forecast window">{HORIZONS.map(([id, t]) =>
+                <button key={id} className={hz === id ? "on" : ""} onClick={() => setHz(id)} aria-pressed={hz === id}>{t}</button>)}</div>}
+              <SurgeMap layer={layer} selected={selected} onSelect={setSelected} cov={cov} />
+              <div className="modes" role="group" aria-label="Map layer">{modeList.map(([id, t, I]) =>
+                <button key={id} className={mode === id ? "on" : ""} onClick={() => setMode(id)} aria-pressed={mode === id} aria-label={t} title={t}><I size={20} /></button>)}</div>
+</div>
+            <div className="rank-col">
+              <div className="table-x"><table>
+                <thead><tr><th>RANK / COUNTY</th><th>RISK</th><th>EXPOSURE</th><th>ACTION</th></tr></thead>
+                <tbody>{ranked.map((c, i) => { const [label, cls] = tier(c.risk); return (
+                  <tr key={c.id} className={c.id === sel.id ? "sel" : ""} onClick={() => setSelected(c.fips)}>
+                    <td><span className="rank">{i + 1}</span><b>{c.name}</b><small>{c.eta != null ? `${c.depot} crew · ${c.eta} min` : "no crew free"}</small></td>
+                    <td><b className={cls}>{c.risk}</b><small>{c.delta > 0 ? "+" : ""}{c.delta} pts</small></td>
+                    <td><b>{fmt(c.exposure)}</b><small>{fmt(c.seniors)} aged 65+</small></td>
+                    <td><span className={`pill ${cls}`}>{c.status === "out" ? "Power out" : label} <ChevronRight size={14} /></span></td>
+                  </tr>); })}</tbody>
+              </table></div>
+              {focusCounty && s.latest && (
+                <div className="detail">
+                  <Decision county={focusCounty} index={idx} latest={s.latest} priority={focusPriority}
+                    qty={qtyOf(s.qty, sel.fips)} onQty={q => s.setQty({ ...s.qty, [sel.fips]: q })} available={avail}
+                    busy={false} onSend={assignOne} />
+                </div>
+              )}
             </div>
-            <div className="table-x"><table>
-              <thead><tr><th>RANK / COUNTY</th><th>RISK</th><th>EXPOSURE</th><th>ACTION</th></tr></thead>
-              <tbody>{ranked.map((c, i) => { const [label, cls] = tier(c.risk); return (
-                <tr key={c.id} className={c.id === sel.id ? "sel" : ""} onClick={() => setSelected(c.fips)}>
-                  <td><span className="rank">{i + 1}</span><b>{c.name}</b><small>{c.eta != null ? `${c.depot} crew · ${c.eta} min` : "no crew free"}</small></td>
-                  <td><b className={cls}>{c.risk}</b><small>{c.delta > 0 ? "+" : ""}{c.delta} pts</small></td>
-                  <td><b>{fmt(c.exposure)}</b><small>{fmt(c.seniors)} aged 65+</small></td>
-                  <td><span className={`pill ${cls}`}>{c.status === "out" ? "Power out" : label} <ChevronRight size={14} /></span></td>
-                </tr>); })}</tbody>
-            </table></div>
           </div>
         </section>
 
@@ -175,9 +217,24 @@ export default function SurgePage() {
             <div className="bar"><i style={{ width: `${inPlan + summary.crewsAvailable ? (inPlan / (inPlan + summary.crewsAvailable)) * 100 : 0}%` }} /></div></div>
         </section>
 
+        <div className="pair">
+          <section className="card" aria-label="Statewide">
+            <div className="card-h"><div><h3>Statewide</h3><p>Where it is heading and where it is worst</p></div></div>
+            <Statewide latest={s.latest} counties={s.counties} series={s.series} onSelect={setSelected} selected={selected} />
+          </section>
+          <section className="card" aria-label="How far to trust it">
+            <div className="card-h"><div><h3>How far to trust it</h3><p>Tested on outages the model never saw</p></div><a className="link" href="#/more">Details <ArrowRight size={16} /></a></div>
+            {model?.metrics.scenarios && (
+              <ul className="trust">{Object.entries(model.metrics.scenarios).map(([k, v]) => (
+                <li key={k}><span>{EVENT[k] ?? k} outages</span><span className="mono">{v.warned}/{v.onsets} warned first</span><b>{v.warned_pct != null ? `${v.warned_pct.toFixed(0)}%` : "–"}</b></li>))}</ul>
+            )}
+            {ts && <p className="trust-note">When the model says <b>act</b>, the county went severe within 24 hours {Math.round(ts.act.precision * 100)}% of the time, against {(ts.base_rate * 100).toFixed(1)}% for a typical county-hour ({ts.act.lift}x). Most alerts still do not end in a severe outage, so the plan is a ranking, not a promise.</p>}
+            {!model && <p className="trust-note">Model results load when a server is connected.</p>}
+          </section>
+        </div>
+
         <section className="card">
-          <div className="card-h"><div><h3>Weather and grid</h3><p>Live from the same feed · {clock(data.now)}</p></div>
-            <a className="link" href="#/more">How far to trust it <ArrowRight size={16} /></a></div>
+          <div className="card-h"><div><h3>Weather and grid</h3><p>From the same feed · {clock(data.now)}</p></div></div>
           <div className="fac">{weather.map(f => { const I = weatherIcons[f.key]; return (
             <div key={f.key}><span className={`fi ${f.key}`}><I size={20} /></span><p><b>{f.n}</b> {f.label}</p><small>{f.sub}</small></div>); })}</div>
         </section>
@@ -194,6 +251,8 @@ export default function SurgePage() {
         {sms && <div className="sms"><p>{sms}</p><small>{sms.length} chars</small>
           <button className="btn ghost" onClick={() => navigator.clipboard.writeText(sms)}>Copy</button>
           <button className="btn primary" onClick={() => sendSms(sms)}>Open in Messages</button></div>}
+
+        <FeedStrip />
 
         <p className="foot">Recommendations only. Crews, depots and the roster are sample data. <a href="#/classic">Classic view</a></p>
       </main>
@@ -231,10 +290,10 @@ function Header({ onMenu, menu, live, label, briefing }) {
   );
 }
 
-function Kpi({ icon, tone, label, value, children, ring }) {
-  return (<div className="kpi"><span className={`ki ${tone}`}>{icon}</span>
-    <div><p>{label}</p><b>{value}</b>{children}</div>
-    {ring != null && <div className="ring" style={{ "--p": ring }}><span>{ring}%</span></div>}</div>);
+function Kpi({ icon, label, value, children, ring }) {
+  return (<div className="kpi">
+    <p>{icon}{label}</p><b>{value}</b>{children}
+    {ring != null && <i className="kbar"><i style={{ width: `${ring}%` }} /></i>}</div>);
 }
 
 function AssignPanel({ action, people, existing, counties, summary, onCancel, onCommit, onSent }) {
