@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { CloudOff, Ellipsis, Map as MapIcon, Package, Undo2, Users, Zap } from "lucide-react";
 import { UNDO_MS, useStore } from "../lib/store.jsx";
 import { clock } from "../lib/format.js";
+import AlertBanner from "./AlertBanner.jsx";
 import AssignSheet from "./AssignSheet.jsx";
+import DraftSheet from "./DraftSheet.jsx";
+import PrintBrief from "./PrintBrief.jsx";
 import TextCrew from "./TextCrew.jsx";
 
 export const TABS = [
@@ -43,8 +46,11 @@ export default function Shell({ path, children }) {
 
       <UndoBar />
       <Toast />
+      <AlertBanner />
       <TextCrew />
       <AssignSheet />
+      <DraftSheet />
+      <PrintBrief />
     </div>
   );
 }

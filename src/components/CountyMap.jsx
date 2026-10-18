@@ -154,6 +154,9 @@ export default function CountyMap({ latest, counties, layer, tiers, selected, on
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
+    // the 65+ layer: residents aged 65 and over, weighted by each county's risk
+    let maxSeniors = 1;
+    if (layer === "seniors") for (const c of counties) maxSeniors = Math.max(maxSeniors, (latest?.counties[index.get(c.fips)]?.[0] ?? 0) * c.pop65);
     for (const c of counties) {
       const i = index.get(c.fips);
       const row = latest?.counties[i];
@@ -170,6 +173,10 @@ export default function CountyMap({ latest, counties, layer, tiers, selected, on
             tier = 2;
             op = 0.3 + 0.5 * Math.min(1, ((out * 2.6) / Math.max(c.pop, 1)) * 8);
           }
+        } else if (layer === "seniors") {
+          const v = row[0] * c.pop65;
+          tier = 3;
+          op = v > 0 ? 0.08 + 0.78 * Math.sqrt(v / maxSeniors) : 0;
         } else if (layer === "nws") {
           const n = latest?.alerts?.by_fips[c.fips]?.length ?? 0;
           if (n) {
@@ -214,7 +221,7 @@ export default function CountyMap({ latest, counties, layer, tiers, selected, on
     const i = index.get(hover.fips);
     const row = i != null ? latest?.counties[i] : undefined;
     if (!c || !row) return null;
-    const what = layer === "out" ? `${row[2].toLocaleString()} customers out` : layer === "nws" ? (latest?.alerts?.by_fips[c.fips] ?? ["no active alerts"]).join(", ") : `${pct(layer === "p6" ? row[3] : layer === "p12" ? row[4] : row[0], 1)} risk within ${layer.slice(1)} h`;
+    const what = layer === "out" ? `${row[2].toLocaleString()} customers out` : layer === "seniors" ? `${Math.round(row[0] * c.pop65).toLocaleString()} seniors expected at risk` : layer === "nws" ? (latest?.alerts?.by_fips[c.fips] ?? ["no active alerts"]).join(", ") : `${pct(layer === "p6" ? row[3] : layer === "p12" ? row[4] : row[0], 1)} risk within ${layer.slice(1)} h`;
     return { x: hover.x, y: hover.y, name: `${c.name} County`, what };
   }, [hover, byFips, index, latest, layer]);
 

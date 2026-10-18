@@ -75,6 +75,11 @@ export function StoreProvider({ children }) {
   const openComposer = useCallback((unitId = null) => setComposer({ unitId }), []);
   const closeComposer = useCallback(() => setComposer(null), []);
   const [history, setHistory] = useState([]); // the last hours, small, so the map can be scrubbed back
+  const [lastEventAt, setLastEventAt] = useState(0); // wall-clock time of the latest forecast hour, for the feed strip
+  const [assignedAt, setAssignedAt] = useState({}); // unit id -> the data clock when it joined the plan, for countdowns
+  const [draft, setDraft] = useState(null); // a generic text draft: { title, eyebrow, text, key }
+  const openDraft = useCallback(d => setDraft(d), []);
+  const closeDraft = useCallback(() => setDraft(null), []);
   const [toast, setToast] = useState(null);
   const [qty, setQtyState] = useState({});
   const [series, setSeries] = useState([]);
@@ -194,6 +199,7 @@ export function StoreProvider({ children }) {
       if (!batch.length) return;
       const last = batch[batch.length - 1];
       setLatest(last);
+      setLastEventAt(Date.now());
       setState(s => (s ? { ...s, running: true, i: last.i + 1 } : s));
       setSeries(prev => {
         const next = prev.length && prev[prev.length - 1].i >= batch[0].i ? [] : prev.slice(-300);
@@ -224,6 +230,7 @@ export function StoreProvider({ children }) {
         setLatest(null);
         setSeries([]);
         setHistory([]);
+        setAssignedAt({});
         setPlan(null);
         setState(msg);
       } else if (msg.type === "end") {
@@ -340,14 +347,33 @@ export function StoreProvider({ children }) {
   );
   const sitrep = useCallback(async () => (await call("GET", "/api/ops/sitrep")).markdown, []);
 
+  // note when each crew joined the plan, on the data's own clock, so a countdown to leaving can keep running
+  useEffect(() => {
+    if (!ops) return;
+    const t = latest ? Date.parse(latest.as_of ?? latest.t) : NaN;
+    setAssignedAt(prev => {
+      const next = {};
+      let changed = false;
+      for (const u of ops.units) {
+        if (!u.assignment || !(u.status === "en_route" || u.status === "on_site")) continue;
+        if (prev[u.id] != null) next[u.id] = prev[u.id];
+        else if (!Number.isNaN(t)) {
+          next[u.id] = t;
+          changed = true;
+        }
+      }
+      return !changed && Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+  }, [ops, latest]);
+
   const tiers = models?.[state?.model ?? "honest"]?.tiers ?? models?.honest?.tiers ?? null;
 
   const value = useMemo(
     () => ({
-      latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, setSelected, pendingUndo, assign, openAssign, closeAssign, composer, openComposer, closeComposer, toast, say, series, history,
+      latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, setSelected, pendingUndo, assign, openAssign, closeAssign, composer, openComposer, closeComposer, toast, say, series, history, lastEventAt, assignedAt, draft, openDraft, closeDraft,
       qty, setQty, start, startDemo, pause, resume, seek, dispatch, undo, setUnitCount, setStock, setTarget, setUnitStatus, sitrep, refreshPlan,
     }),
-    [latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, pendingUndo, assign, openAssign, closeAssign, composer, openComposer, closeComposer, toast, say, series, history,
+    [latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, pendingUndo, assign, openAssign, closeAssign, composer, openComposer, closeComposer, toast, say, series, history, lastEventAt, assignedAt, draft, openDraft, closeDraft,
       qty, setQty, start, startDemo, pause, resume, seek, dispatch, undo, setUnitCount, setStock, setTarget, setUnitStatus, sitrep, refreshPlan],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -1,9 +1,10 @@
 import { Copy, MapPin, MessageSquare, Plus, Share2, Undo2 } from "lucide-react";
 import { useState } from "react";
 import Stepper from "../components/Stepper.jsx";
-import { orderOf, qtyOf, rankBy, total } from "../lib/decisions.js";
+import { leaveInMin, orderOf, qtyOf, rankBy, total } from "../lib/decisions.js";
 import { compact, dayClock, departBy, mins, pct } from "../lib/format.js";
 import { orderFor } from "../lib/orders.js";
+import { smsSummary } from "../lib/brief.js";
 import { copyText, shareText } from "../lib/share.js";
 import { useSetting } from "../lib/settings.js";
 import { useStore } from "../lib/store.jsx";
@@ -86,6 +87,8 @@ export default function Teams() {
               <h2 className="eyebrow">Recommended plan · {out.length}</h2>
               {out.length > 0 && (
                 <>
+                  <button className="btn sm" onClick={() => s.openDraft({ eyebrow: "Situation summary", title: "Text a summary", text: smsSummary(s), key: "summary" })}><MessageSquare size={16} /> Text summary</button>
+                  <button className="btn sm" onClick={() => window.print()}>Print brief</button>
                   <button className="btn sm" onClick={async () => s.say((await copyText(planText)) ? "Plan copied" : "Could not copy")}><Copy size={16} /> Copy plan</button>
                   <button className="btn sm" onClick={() => shareText("Recommended plan", planText, s.say)}><Share2 size={16} /> Share</button>
                 </>
@@ -141,11 +144,12 @@ function FieldRow({ u, now }) {
   const s = useStore();
   const o = s.ops ? orderFor(u, s.counties, s.ops.depots, now) : null;
   const a = u.assignment;
+  const left = leaveInMin(u, s.assignedAt, Date.parse(now));
   return (
     <li className="field-row">
       <div className="field-top">
         <p><b>{u.name}</b> <span className="faint">→ {a?.county}</span></p>
-        <span className="chip">{a ? (a.depart_by_min === 0 ? "leave now" : `leave by ${departBy(now, a.depart_by_min)}`) : "planned"}</span>
+        <span className={`chip ${left != null && left <= 30 ? "chip-red" : ""}`}>{a ? (left === 0 ? "leave now" : `leaves in ${mins(left)}`) : "planned"}</span>
       </div>
       <div className="btn-row">
         <button className="btn sm primary" onClick={() => s.openComposer(u.id)}><MessageSquare size={16} /> Text crew</button>

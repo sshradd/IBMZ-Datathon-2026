@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
+import { smsSummary } from "../lib/brief.js";
 import { useSetting } from "../lib/settings.js";
+import { useStore } from "../lib/store.jsx";
 
 const EVENT = { uri: "Feb 2021 outages", elliott: "Dec 2022 outages", ice2023: "Feb 2023 outages", heat2023: "Aug 2023 outages" };
 
 export default function More() {
+  const s = useStore();
   const [glove, setGlove] = useSetting("glove", "off", "glove");
   const [model, setModel] = useState(null);
 
@@ -21,6 +24,15 @@ export default function More() {
       </header>
 
       <div className="rows more-rows">
+        <section aria-label="Briefing">
+          <h2 className="eyebrow">When signal is poor</h2>
+          <p className="muted mt-xs">A one-page paper brief, or the whole situation in one text.</p>
+          <div className="btn-row">
+            <button className="btn primary" onClick={() => window.print()}>Print the brief</button>
+            <button className="btn" onClick={() => s.openDraft({ eyebrow: "Situation summary", title: "Text a summary", text: smsSummary(s), key: "summary" })} disabled={!s.latest}>Text a summary</button>
+          </div>
+        </section>
+
         <section aria-label="Display">
           <h2 className="eyebrow">Display</h2>
           <div className="rows">

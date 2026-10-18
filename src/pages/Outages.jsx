@@ -2,10 +2,12 @@ import { AlertTriangle, List, Map as MapIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CountyList from "../components/CountyList.jsx";
 import CountyMap from "../components/CountyMap.jsx";
+import Coverage from "../components/Coverage.jsx";
 import Decision from "../components/Decision.jsx";
+import FeedStrip from "../components/FeedStrip.jsx";
 import Statewide from "../components/Statewide.jsx";
 import Weather from "../components/Weather.jsx";
-import { OBJECTIVES, orderOf, qtyOf, rankBy, total } from "../lib/decisions.js";
+import { OBJECTIVES, coverage, inPlan, leaveInMin, orderOf, qtyOf, rankBy, total } from "../lib/decisions.js";
 import { clock, compact, departBy, mins, pct } from "../lib/format.js";
 import { useSetting } from "../lib/settings.js";
 import { useStore } from "../lib/store.jsx";
@@ -16,6 +18,7 @@ const LAYERS = [
   { id: "p6", label: "6 h" },
   { id: "out", label: "Out now" },
   { id: "nws", label: "NWS" },
+  { id: "seniors", label: "65+" },
 ];
 
 // bottom sheet heights on a phone: peek shows the decision, half shows the facts, full shows everything
@@ -108,6 +111,11 @@ export default function Outages() {
   const viewFrame = back != null ? s.history[back] : null;
   const mapLatest = viewFrame ? { ...latest, counties: viewFrame.counties } : latest;
   const hoursBack = viewFrame ? Math.max(0, s.history[historyLen - 1].i - viewFrame.i) : 0;
+  const cov = coverage(plan?.priorities ?? [], ops?.units ?? []);
+  const nowMs = Date.parse(now);
+  const waits = (ops?.units ?? []).filter(inPlan).map(u => leaveInMin(u, s.assignedAt, nowMs)).filter(v => v != null);
+  const nextLeave = waits.length ? Math.min(...waits) : null;
+  const assignUncovered = () => s.openAssign(cov.uncovered.slice(0, Math.min(5, Math.max(avail.line, 0))).map(p => orderOf(p, qty)).filter(o => o.line + o.shelter + o.outreach > 0));
   const statewide = latest.prescribe.moves.filter(m => m.kind === "statewide");
   const outUnits = ops?.units.filter(u => u.status === "en_route" || u.status === "on_site").length ?? 0;
   const nextUp = priorities.filter(p => p.fips !== focusFips);
@@ -164,6 +172,8 @@ export default function Outages() {
 
       <div className="show-below-lg">{strip}</div>
 
+      <div className="divide"><Coverage /></div>
+
       <div className="divide">
         <Statewide latest={latest} counties={counties} series={series} selected={selected} onSelect={setSelected} />
       </div>
@@ -215,6 +225,7 @@ export default function Outages() {
           As of <b>{live && latest.as_of ? clock(latest.as_of) : clock(now)}</b>
         </div>
       </section>
+      <FeedStrip />
       <div className="hide-below-lg strip-wrap">{strip}</div>
 
       <div className="stage">
@@ -241,6 +252,8 @@ export default function Outages() {
               <span className="pill">Out now <b>{live ? "no feed" : compact(latest.out_total)}</b></span>
               <span className="pill">Next 24 h <b>≈{Math.round(latest.predict.expected_onsets[2])}</b> counties</span>
               <span className="pill">Crews free <b>{avail.line}</b>{outUnits > 0 && <span className="faint">· {outUnits} in plan</span>}</span>
+              {cov.uncovered.length > 0 && <button className="pill pill-alert" onClick={assignUncovered} disabled={avail.line < 1}><b>{cov.uncovered.length}</b> without a crew</button>}
+              {nextLeave != null && <span className="pill">{nextLeave === 0 ? "A crew should leave now" : <>Next crew leaves in <b>{nextLeave} min</b></>}</span>}
             </div>
           </div>
 
@@ -290,6 +303,8 @@ function Legend({ layer }) {
   const items =
     layer === "out"
       ? [{ c: "var(--tier-3)", t: "severe outage" }, { c: "var(--tier-2)", t: "some customers out" }, { c: "var(--tier-0)", t: "power on" }]
+      : layer === "seniors"
+        ? [{ c: "var(--tier-3)", t: "more seniors at risk" }, { c: "var(--tier-1)", t: "fewer" }]
       : layer === "nws"
         ? [{ c: "var(--tier-2)", t: "active NWS alert" }, { c: "var(--tier-0)", t: "none" }]
         : [{ c: "var(--tier-1)", t: "watch" }, { c: "var(--tier-2)", t: "prepare" }, { c: "var(--tier-3)", t: "act" }];

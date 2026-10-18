@@ -274,3 +274,24 @@ button.pill{cursor:pointer;min-height:36px}
 .scrub::-moz-range-thumb{width:10px;height:10px;border-radius:50%;background:var(--ink);border:3px solid var(--card)}
 .rcpt{margin-bottom:20px}
 @media(min-width:768px){.modal{align-items:center}.modal-card{border-radius:20px}}
+
+/* event banner, feed strip, coverage, 65+ pill */
+.card.alert{position:fixed;left:12px;right:12px;top:calc(var(--hh) + 8px);z-index:45;margin:0 auto;max-width:560px;border-left:4px solid var(--red);overflow:hidden}
+.alert-in{display:flex;align-items:center;gap:12px;padding:10px 12px}.alert-in b{font-size:16px;letter-spacing:-.01em}
+.feed{flex:none;display:flex;align-items:center;gap:14px;flex-wrap:nowrap;overflow:hidden;white-space:nowrap;padding:6px var(--pad);background:var(--card-2);border-bottom:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
+.feed b{color:var(--ink);font-weight:500}.dot-amber{background:var(--amber)}
+.cover-line{margin-top:6px;font-size:16px}
+.cover .cov{margin-top:10px}.block-btn{display:flex;width:100%;margin-top:14px}
+.rebal{display:flex;align-items:center;gap:12px;margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card-2)}.rebal p{flex:1;min-width:0}
+button.pill-alert{border-color:var(--red);color:var(--red);cursor:pointer}button.pill-alert b{color:var(--red)}button.pill-alert:disabled{opacity:.5}
+
+/* paper brief: hidden on screen, the only thing shown when printing */
+.print-brief{display:none}
+@media print{
+  .shell>*:not(.print-brief){display:none!important}
+  body{background:#fff!important}
+  .print-brief{display:block;padding:24px;color:#000;font-family:var(--sans);font-size:12px;line-height:1.4}
+  .print-brief h1{margin:0 0 4px;font-size:22px}.print-brief h2{margin:14px 0 4px;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+  .print-brief table{width:100%;border-collapse:collapse}.print-brief th,.print-brief td{padding:3px 6px;border-bottom:1px solid #ccc;text-align:left}
+  .print-brief ul{margin:0;padding-left:16px;list-style:disc}.print-brief .mono{font-size:11px}.print-brief .foot{margin-top:14px;color:#555;font-size:10px}
+}
