@@ -6,6 +6,9 @@ API reachable it uses live data. Add `?demo=1` to the address to force the recor
 
 ## GitHub Pages (what teammates look at)
 
+A GitHub Action (`.github/workflows/publish-site.yml`) rebuilds the site and updates the `gh-pages` branch every time
+anyone pushes to `restyle/vaishu_new`, so the site always matches the code. Nothing to run by hand.
+
 The built site lives on the `gh-pages` branch. Turn it on once, as a repo admin:
 Settings, Pages, Source "Deploy from a branch", branch `gh-pages`, folder `/ (root)`.
 The address is https://sshradd.github.io/IBMZ-Datathon-2026/
