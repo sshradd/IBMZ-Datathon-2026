@@ -6,6 +6,7 @@ import More from "./pages/More.jsx";
 import Outages from "./pages/Outages.jsx";
 import Resources from "./pages/Resources.jsx";
 import Teams from "./pages/Teams.jsx";
+import SurgePage from "./surge/SurgePage.jsx";
 
 // Tabs live in the URL hash (#/teams) so the app stays a static page with no server routes.
 const readPath = () => {
@@ -26,9 +27,13 @@ export default function App() {
   }, []);
   return (
     <StoreProvider>
-      <Shell path={path}>
-        {path === "/teams" ? <Teams /> : path === "/resources" ? <Resources /> : path === "/more" ? <More /> : <Outages />}
-      </Shell>
+      {path === "/" ? (
+        <SurgePage />
+      ) : (
+        <Shell path={path}>
+          {path === "/teams" ? <Teams /> : path === "/resources" ? <Resources /> : path === "/more" ? <More /> : <Outages />}
+        </Shell>
+      )}
     </StoreProvider>
   );
 }

@@ -81,7 +81,7 @@ function Playback() {
   );
 }
 
-function UndoBar() {
+export function UndoBar() {
   const { pendingUndo, undo, assign } = useStore();
   const [left, setLeft] = useState(0);
   useEffect(() => {
@@ -106,7 +106,7 @@ function UndoBar() {
   );
 }
 
-function Toast() {
+export function Toast() {
   const { toast } = useStore();
   if (!toast) return null;
   return <div className="card toast" role="status">{toast}</div>;

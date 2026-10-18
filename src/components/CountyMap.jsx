@@ -14,9 +14,9 @@ const IMAGERY = ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Ima
 const PLACES = ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"];
 const ATTRIBUTION = "Tiles © Esri — Esri, DeLorme, NAVTEQ";
 // fill strength per tier: no risk stays clear so the real map shows through
-const TIER_OPACITY = [0, 0.62, 0.76, 0.88];
+const TIER_OPACITY = [0, 0.62, 0.76, 0.88, 0.8];
 // the one red ramp, same as the legend
-const TIER_COLOR = ["#1f2440", "#ffc233", "#ff8a3d", "#ff4d5e"];
+const TIER_COLOR = ["#1f2440", "#ffc233", "#ff8a3d", "#ff4d5e", "#35d6a0"]; // the last is "has a crew"
 
 const el = (cls, html = "") => {
   const d = document.createElement("div");
@@ -43,7 +43,7 @@ function arc(a, b) {
   return pts;
 }
 
-export default function CountyMap({ latest, counties, layer, tiers, selected, onSelect, depots = [], lines = [], staging = [], beacon = [], bottomPad = 60 }) {
+export default function CountyMap({ latest, counties, layer, tiers, selected, onSelect, depots = [], lines = [], staging = [], beacon = [], bottomPad = 60, coverageSets = null }) {
   const host = useRef(null);
   const mapRef = useRef(null);
   const markers = useRef([]);
@@ -192,6 +192,15 @@ export default function CountyMap({ latest, counties, layer, tiers, selected, on
             tier = 2;
             op = 0.3 + 0.5 * Math.min(1, ((out * 2.6) / Math.max(c.pop, 1)) * 8);
           }
+        } else if (layer === "coverage") {
+          // counties that need action: green when a crew is assigned, red when none is
+          if (coverageSets?.uncovered.has(c.fips)) {
+            tier = 3;
+            op = TIER_OPACITY[3];
+          } else if (coverageSets?.covered.has(c.fips)) {
+            tier = 4;
+            op = TIER_OPACITY[4];
+          }
         } else if (layer === "seniors") {
           const v = row[0] * c.pop65;
           tier = 3;
@@ -215,7 +224,7 @@ export default function CountyMap({ latest, counties, layer, tiers, selected, on
       }
       map.setFeatureState({ source: "counties", id: c.fips }, { c: TIER_COLOR[tier], o: op, sev, sel: selected === c.fips });
     }
-  }, [latest, layer, tiers, selected, counties, index, ready]);
+  }, [latest, layer, tiers, selected, counties, index, ready, coverageSets]);
 
   // selecting a county brings it into view, with its route if it has one
   const prevSel = useRef(null);
@@ -240,7 +249,7 @@ export default function CountyMap({ latest, counties, layer, tiers, selected, on
     const i = index.get(hover.fips);
     const row = i != null ? latest?.counties[i] : undefined;
     if (!c || !row) return null;
-    const what = layer === "out" ? `${row[2].toLocaleString()} customers out` : layer === "seniors" ? `${Math.round(row[0] * c.pop65).toLocaleString()} seniors expected at risk` : layer === "nws" ? (latest?.alerts?.by_fips[c.fips] ?? ["no active alerts"]).join(", ") : `${pct(layer === "p6" ? row[3] : layer === "p12" ? row[4] : row[0], 1)} risk within ${layer.slice(1)} h`;
+    const what = layer === "out" ? `${row[2].toLocaleString()} customers out` : layer === "seniors" ? `${Math.round(row[0] * c.pop65).toLocaleString()} seniors expected at risk` : layer === "coverage" ? (coverageSets?.covered.has(c.fips) ? "crew assigned" : coverageSets?.uncovered.has(c.fips) ? "needs a crew, none assigned" : "no action needed") : layer === "nws" ? (latest?.alerts?.by_fips[c.fips] ?? ["no active alerts"]).join(", ") : `${pct(layer === "p6" ? row[3] : layer === "p12" ? row[4] : row[0], 1)} risk within ${layer.slice(1)} h`;
     return { x: hover.x, y: hover.y, name: `${c.name} County`, what };
   }, [hover, byFips, index, latest, layer]);
 
