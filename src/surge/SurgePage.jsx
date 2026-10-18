@@ -33,12 +33,16 @@ export default function SurgePage() {
 
   // first open with nothing running: load the recorded outages so the page is never empty
   const autoStarted = useRef(false);
-  const hasDemo = s.scenarios.some(x => x.key !== "live");
+  // with a server this is the live feed; with none, the recorded outages play so the page is never empty
+  const hasLive = s.scenarios.some(x => x.key === "live");
+  const hasRecorded = s.scenarios.some(x => x.key !== "live");
   useEffect(() => {
-    if (autoStarted.current || s.latest || !s.state || s.state.scenario || !hasDemo) return;
-    autoStarted.current = true;
-    s.startDemo();
-  }, [s.latest, s, hasDemo]);
+    if (autoStarted.current || s.latest || !s.state || s.state.scenario) return;
+    if (!s.demo && hasLive) { autoStarted.current = true; s.start("live"); }
+    else if (hasRecorded) { autoStarted.current = true; s.startDemo(); }
+  }, [s.latest, s, hasLive, hasRecorded]);
+  const title = s.state?.title?.match(/\(([^)]+)\)/)?.[1];
+  const feedLabel = data_live => (data_live ? "LIVE" : title ? `${title} outages` : "LIVE");
 
   const sel = useMemo(() => {
     if (!data) return null;
@@ -60,7 +64,7 @@ export default function SurgePage() {
   if (!data || !sel) {
     return (
       <div className="sg">
-        <Header onMenu={() => setMenu(v => !v)} menu={menu} live={false} demo={s.demo} briefing={null} />
+        <Header onMenu={() => setMenu(v => !v)} menu={menu} label="LIVE" live briefing={null} />
         <main><p className="sub">Loading the forecast…</p></main>
       </div>
     );
@@ -78,7 +82,7 @@ export default function SurgePage() {
   return (
     <>
     <div className="sg">
-      <Header onMenu={() => setMenu(v => !v)} menu={menu} live={data.live} demo={s.demo} briefing={() => downloadBriefPdf(summary, ranked, actions)} />
+      <Header onMenu={() => setMenu(v => !v)} menu={menu} live={data.live} label={feedLabel(data.live)} briefing={() => downloadBriefPdf(summary, ranked, actions)} />
 
       <section className="status">
         <div className="st-ic"><AlertTriangle /></div>
@@ -100,7 +104,7 @@ export default function SurgePage() {
             <span><b className="red">{summary.act} critical</b> · {summary.elevated} elevated</span>
           </Kpi>
           <Kpi icon={<Users />} tone="amber" label="People exposed" value={fmt(summary.peopleExposed)}>
-            <span><b className="red">{fmt(summary.customersOut)}</b> customers out now</span>
+            {data.live ? <span>live mode has no county outage feed</span> : <span><b className="red">{fmt(summary.customersOut)}</b> customers out now</span>}
           </Kpi>
           <Kpi icon={<Users />} tone="blue" label="Seniors exposed" value={fmt(summary.seniors)}>
             <span>aged 65+ in counties likely to go severe</span>
@@ -204,12 +208,12 @@ export default function SurgePage() {
   );
 }
 
-function Header({ onMenu, menu, live, demo, briefing }) {
+function Header({ onMenu, menu, live, label, briefing }) {
   return (
     <header className="top">
       <a className="brand" href="#/" aria-label="Surge, home"><Logo size={30} /><b>SURGE</b><span>Grid Resilience Command</span></a>
       <div className="top-r">
-        <span className="live"><i /> {live ? "LIVE" : demo ? "RECORDED DEMO" : "DEMO OUTAGES"}</span>
+        <span className="live"><i /> {label}</span>
         <div className="menu-wrap">
           <button className="icon-btn" onClick={onMenu} aria-label="Menu" aria-expanded={menu}><Menu size={18} /></button>
           {menu && (
