@@ -371,3 +371,9 @@ select.input option{color:#000}
 
 .modal-actions{position:sticky;bottom:-20px;margin:16px -20px -20px;padding:18px 20px 20px;background:linear-gradient(180deg,rgba(19,22,45,0),#13162d 30%)}
 .modal-actions .block-btn{margin-top:0}
+
+/* simple by default: the extra team types fold away */
+.more-teams{margin-top:14px;border-top:1px solid var(--line)}
+.more-teams summary{cursor:pointer;list-style:none;padding:12px 0;color:var(--ink-2);font-weight:500}
+.more-teams summary::-webkit-details-marker{display:none}
+.more-teams summary:after{content:"  +";color:var(--accent)}.more-teams[open] summary:after{content:"  −"}

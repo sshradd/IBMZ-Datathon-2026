@@ -8,6 +8,7 @@ const EVENT = { uri: "Feb 2021 outages", elliott: "Dec 2022 outages", ice2023: "
 export default function More() {
   const s = useStore();
   const [glove, setGlove] = useSetting("glove", "off", "glove");
+  const [detail, setDetail] = useSetting("detail", "off");
   const [model, setModel] = useState(null);
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export default function More() {
         <section aria-label="Display">
           <h2 className="eyebrow">Display</h2>
           <div className="rows">
+            <Toggle label="Show extra detail" sub="Live feed, weather, trends, rewind, list order and more map layers" on={detail === "on"} onChange={v => setDetail(v ? "on" : "off")} />
             <Toggle label="Glove mode" sub="Bigger buttons for gloved hands" on={glove === "on"} onChange={v => setGlove(v ? "on" : "off")} />
           </div>
         </section>

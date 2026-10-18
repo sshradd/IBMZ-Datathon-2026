@@ -55,13 +55,16 @@ export default function Decision({ county, index, latest, priority, qty, onQty, 
       </dl>
 
       {priority && priority.reasons.length > 0 && (
-        <ul className="reasons">{priority.reasons.slice(0, 2).map((w, i) => <li key={i}>{w}</li>)}</ul>
+        <ul className="reasons">{priority.reasons.slice(0, 1).map((w, i) => <li key={i}>{w}</li>)}</ul>
       )}
 
+      <details className="more-teams">
+        <summary>Shelter and outreach teams</summary>
       <div className="rows mt-s">
         <div className="row-pad"><Stepper label="Shelter teams" value={qty.shelter} max={available.shelter} note={`${available.shelter} free`} onChange={v => onQty({ ...qty, shelter: v })} /></div>
         <div className="row-pad"><Stepper label="Outreach teams" value={qty.outreach} max={available.outreach} note={`${available.outreach} free`} onChange={v => onQty({ ...qty, outreach: v })} /></div>
       </div>
+      </details>
 
       <div className="btn-row">
         <a className="btn sm" href={`https://www.google.com/maps/search/?api=1&query=${county.lat},${county.lon}`} target="_blank" rel="noreferrer"><MapPin size={16} /> Open in Maps</a>

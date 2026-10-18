@@ -33,6 +33,8 @@ export default function Outages() {
   const [busy, setBusy] = useState(false);
   const [snap, setSnap] = useState(0);
   const [objective, setObjective] = useSetting("objective", "impact");
+  const [detail] = useSetting("detail", "off"); // More > "Show extra detail": the live feed, weather, trends, rewind and extra layers
+  const more = detail === "on";
   const [back, setBack] = useState(null); // index into the last hours of history while the map is rewound
   const historyLen = s.history.length;
   useEffect(() => {
@@ -147,7 +149,7 @@ export default function Outages() {
           onSend={() => addToPlan([focus.fips])}
           onSkip={focusPriority && focus.fips === top?.fips ? () => { setSkipped(x => [...x, focus.fips]); setSelected(null); } : undefined}
           onClose={selected ? () => setSelected(null) : undefined}
-          onSpeak={speak}
+          onSpeak={more ? speak : undefined}
         />
       ) : !plan ? (
         <p className="muted">Loading the plan…</p>
@@ -174,16 +176,20 @@ export default function Outages() {
 
       <div className="divide"><Coverage /></div>
 
-      <div className="divide">
-        <Statewide latest={latest} counties={counties} series={series} selected={selected} onSelect={setSelected} />
-      </div>
+      {more && (
+        <div className="divide">
+          <Statewide latest={latest} counties={counties} series={series} selected={selected} onSelect={setSelected} />
+        </div>
+      )}
 
       {nextUp.length > 0 && (
         <section aria-label="Next up">
           <h3 className="eyebrow">Next up · {nextUp.length}</h3>
-          <div className="seg obj" role="group" aria-label="Order the list by">
-            {OBJECTIVES.map(o => <button key={o.id} onClick={() => setObjective(o.id)} aria-pressed={objective === o.id}>{o.label}</button>)}
-          </div>
+          {more && (
+            <div className="seg obj" role="group" aria-label="Order the list by">
+              {OBJECTIVES.map(o => <button key={o.id} onClick={() => setObjective(o.id)} aria-pressed={objective === o.id}>{o.label}</button>)}
+            </div>
+          )}
           <ul className="rows mt-xs">
             {nextUp.slice(0, 6).map(p => {
               const q = qtyOf(qty, p.fips);
@@ -206,10 +212,10 @@ export default function Outages() {
         </section>
       )}
 
-      <div className="divide"><Weather latest={latest} /></div>
+      {more && <div className="divide"><Weather latest={latest} /></div>}
 
       <p className="faint xs">
-        Forecasts come from weather and outage data. The app recommends where and when. How many crews to commit, and the dispatch itself, are yours. Crews and depots are sample data until you edit them.
+        {more ? "Forecasts come from weather and outage data. The app recommends where and when. How many crews to commit, and the dispatch itself, are yours. Crews and depots are sample data until you edit them." : "Recommendations only. Crews and depots are sample data."}
       </p>
     </div>
   );
@@ -225,7 +231,7 @@ export default function Outages() {
           As of <b>{live && latest.as_of ? clock(latest.as_of) : clock(now)}</b>
         </div>
       </section>
-      <FeedStrip />
+      {more && <FeedStrip />}
       <div className="hide-below-lg strip-wrap">{strip}</div>
 
       <div className="stage">
@@ -243,21 +249,21 @@ export default function Outages() {
           <div className="map-over">
             <div className="seg-wrap">
               <div className="seg">
-                {LAYERS.filter(l => !(live && l.id === "out")).map(l => (
+                {LAYERS.filter(l => (more || !["nws", "seniors"].includes(l.id)) && !(live && l.id === "out")).map(l => (
                   <button key={l.id} onClick={() => setLayer(l.id)} aria-pressed={layer === l.id}>{l.label}</button>
                 ))}
               </div>
             </div>
-            <div className="pills">
+            {more && <div className="pills">
               <span className="pill">Out now <b>{live ? "no feed" : compact(latest.out_total)}</b></span>
               <span className="pill">Next 24 h <b>≈{Math.round(latest.predict.expected_onsets[2])}</b> counties</span>
               <span className="pill">Crews free <b>{avail.line}</b>{outUnits > 0 && <span className="faint">· {outUnits} in plan</span>}</span>
               {cov.uncovered.length > 0 && <button className="pill pill-alert" onClick={assignUncovered} disabled={avail.line < 1}><b>{cov.uncovered.length}</b> without a crew</button>}
               {nextLeave != null && <span className="pill">{nextLeave === 0 ? "A crew should leave now" : <>Next crew leaves in <b>{nextLeave} min</b></>}</span>}
-            </div>
+            </div>}
           </div>
 
-          {historyLen >= 3 && !live && !list && (
+          {more && historyLen >= 3 && !live && !list && (
             <div className="rewind">
               <span className="mono">{back == null ? "Now" : `−${hoursBack} h`}</span>
               <input

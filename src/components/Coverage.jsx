@@ -22,17 +22,10 @@ export default function Coverage() {
 
   return (
     <section aria-label="Crew coverage" className="cover">
-      <div className="blk-h">
-        <h3 className="eyebrow">Crew coverage</h3>
-        <span className="mono faint">{covered.length} of {need.length}</span>
-      </div>
       <p className="cover-line">
         <b>{covered.length}</b> of {need.length} counties needing action have a crew
         {uncovered.length > 0 && <> · <b className="red">{uncovered.length} without</b></>}
       </p>
-      <div className="cov" role="img" aria-label={`${pctCovered} percent of counties needing action have a crew`}>
-        <div style={{ width: `${pctCovered}%`, background: uncovered.length ? "var(--ink)" : "var(--green)" }} />
-      </div>
       {uncovered.length > 0 && (
         free > 0 ? (
           <button className="btn primary block-btn" onClick={assignUncovered}>Assign the {batch.length} most urgent</button>
