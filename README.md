@@ -4,6 +4,8 @@ SURGE is an operations dashboard for monitoring county-level grid resilience ris
 
 The project was built for the IBM Z Datathon. The forecasting workflow uses an IBM Time Series Transformer (IBM TTM) model trained and served through an IBM LinuxONE backend. This repository contains the web dashboard and the optional Node.js assignment API; the model-training service publishes county predictions through the live-data JSON contract described below.
 
+More about model info is located in the model/ttm branch
+
 ## Features
 
 - Interactive Mapbox satellite map of Texas counties
