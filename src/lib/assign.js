@@ -58,22 +58,30 @@ export function makeAssignmentPdf({ action, county, summary, note, people }) {
   return { doc, file, filename };
 }
 
-// Sends one assignment to several people. Demo version: waits 0.7s and logs.
-// Backend team: swap the demo lines for the fetch() below.
-//   POST {VITE_API_URL}/api/assignments   (multipart/form-data)
-//   fields: actionId, actionTitle, people (JSON array of {id,name,role,phone}), note, file (PDF, optional)
+// Provider credentials stay on the API server. The PDF is sent as base64 JSON
+// so the browser never needs direct access to the SMS provider or its secrets.
 export async function sendAssignment({ action, people, note, file }) {
-  const form = new FormData();
-  form.append("actionId", action.id);
-  form.append("actionTitle", action.title);
-  form.append("people", JSON.stringify(people));
-  form.append("note", note);
-  if (file) form.append("file", file);
-
-  // const res = await fetch(`${import.meta.env.VITE_API_URL}/api/assignments`, { method: "POST", body: form });
-  // if (!res.ok) throw new Error("Send failed");
-
-  await new Promise(r => setTimeout(r, 700)); // demo only
-  console.log("Assignment sent (demo):", { to: people.map(p => p.name), action: action.title, note, pdf: file?.name });
-  return true;
+  const pdf = file ? {
+    filename: file.name,
+    content: await file.arrayBuffer().then(buffer => {
+      let binary = "";
+      new Uint8Array(buffer).forEach(byte => { binary += String.fromCharCode(byte); });
+      return btoa(binary);
+    }),
+  } : null;
+  const apiUrl = import.meta.env.VITE_API_URL || "";
+  const response = await fetch(`${apiUrl}/api/assignments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      actionId: action.id,
+      actionTitle: action.title,
+      people: people.map(({ id, name, role, phone }) => ({ id, name, role, phone })),
+      note,
+      pdf,
+    }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || "Send failed");
+  return result;
 }

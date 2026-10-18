@@ -148,6 +148,8 @@ function Kpi({ icon, tone, label, value, children, ring }) {
 function AssignPanel({ action, people, existing, onCancel, onSent }) {
   const county = findCounty(action, counties);
   const [ids, setIds] = useState(existing?.personIds || []);
+  const [phoneNumbers, setPhoneNumbers] = useState(
+    Object.fromEntries(people.map(person => [person.id, person.phone || ""])));
   const [note, setNote] = useState(existing?.note || buildBlurb({ action, county, summary }));
   const [withPdf, setWithPdf] = useState(existing ? !!existing.fileName : true);
   const [error, setError] = useState("");
@@ -155,6 +157,7 @@ function AssignPanel({ action, people, existing, onCancel, onSent }) {
 
   const chosen = people.filter(p => ids.includes(p.id));
   const toggle = id => setIds(ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]);
+  const updatePhone = (id, phone) => setPhoneNumbers({ ...phoneNumbers, [id]: phone });
   const buildPdf = () => makeAssignmentPdf({ action, county, summary, note, people: chosen });
   const preview = () => window.open(buildPdf().doc.output("bloburl"), "_blank");
 
@@ -164,10 +167,14 @@ function AssignPanel({ action, people, existing, onCancel, onSent }) {
     setSending(true); setError("");
     try {
       const file = withPdf ? buildPdf().file : null;
-      await sendAssignment({ action, people: chosen, note, file });
+      const recipients = chosen.map(person => ({ ...person, phone: phoneNumbers[person.id].trim() }));
+      if (recipients.some(person => !/^\+?[1-9]\d{7,14}$/.test(person.phone.replace(/[\s().-]/g, "").replace(/^00/, "+")))) {
+        throw new Error("Enter a valid international phone number, such as +14155550123.");
+      }
+      await sendAssignment({ action, people: recipients, note, file });
       onSent({ personIds: ids, note, fileName: file?.name });
-    } catch {
-      setError("Could not send. Check your connection and try again.");
+    } catch (sendError) {
+      setError(sendError.message || "Could not send. Check your connection and try again.");
       setSending(false);
     }
   };
@@ -183,7 +190,11 @@ function AssignPanel({ action, people, existing, onCancel, onSent }) {
         {people.map(p => (
           <label key={p.id} className={`person ${ids.includes(p.id) ? "on" : ""}`}>
             <input type="checkbox" checked={ids.includes(p.id)} onChange={() => toggle(p.id)} />
-            <span><b>{p.name}</b><small>{p.role}</small></span>
+            <span><b>{p.name}</b><small>{p.role}</small>
+              {ids.includes(p.id) && <input className="phone-input" type="tel" value={phoneNumbers[p.id]}
+                onChange={e => updatePhone(p.id, e.target.value)} placeholder="+14155550123"
+                aria-label={`${p.name} phone number`} />}
+            </span>
           </label>
         ))}
       </div>

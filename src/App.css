@@ -151,6 +151,8 @@ td:first-child{overflow:hidden}
 .assign-panel .person input{width:18px;height:18px;accent-color:var(--accent);flex:none}
 .assign-panel .person span{display:grid;gap:2px}
 .assign-panel .person small{color:#b9c0bd;font-weight:400;font-size:13px}
+.assign-panel .person .phone-input{margin-top:5px;width:100%;min-width:220px;height:34px;padding:6px 8px;border:1px solid rgba(255,255,255,.25);border-radius:6px;background:#1d1f1e;color:#fff;font:inherit;font-size:13px;flex:none}
+.phone-input::placeholder{color:#8f9995}
 .pdf-row{display:flex;gap:12px;align-items:stretch;flex-wrap:wrap}
 .assign-panel .person.pdf{flex:1;min-width:260px}
 .pdf-row .btn{align-self:center}

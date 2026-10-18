@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "api": "node --env-file=.env server/index.js",
     "build": "vite build"
   },
   "dependencies": {
@@ -12,7 +13,8 @@
     "lucide-react": "^0.446.0",
     "mapbox-gl": "^3.7.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "twilio": "^6.2.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
