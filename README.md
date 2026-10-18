@@ -1,4 +1,4 @@
-# Uri Watch
+# SURGE
 
 IBM Z Datathon 2026 · Theme 1: Real-Time AI for Critical Decisions (Predictive Outage Early Warning + Emergency Resource Prioritization)
 
