@@ -133,7 +133,9 @@ h1{font-size:46px;font-weight:500;margin:8px 0 4px;color:#fff}
 
 /* ---------- ranking table (floating glass panel) ---------- */
 table{border-collapse:separate;border-spacing:0;width:100%}
-.split>table{width:calc(100% - 12px);margin:0 12px 12px 0;background:var(--glass);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+.split>table{width:calc(100% - 12px);height:700px;display:block;margin:0 12px 12px 0;background:var(--glass);border:1px solid var(--line);border-radius:var(--r-lg);overflow-y:auto;overflow-x:hidden}
+thead,tbody{display:table;width:100%;table-layout:fixed}
+thead{position:sticky;top:0;z-index:2}
 th{text-align:left;font-size:12px;letter-spacing:.14em;color:var(--mut);padding:16px 14px;font-weight:600;background:var(--glass)}
 td{padding:16px 14px;border-top:1px solid var(--line);font-size:16px;cursor:pointer;color:#fff}
 td b,td small{display:block}td small{font-size:13px}
@@ -199,13 +201,15 @@ td:first-child{overflow:hidden}
 .off-ic{width:112px;height:112px;border-radius:50%;background:var(--ember-grad);color:#1c0d06;display:grid;place-items:center;box-shadow:0 12px 36px rgba(255,122,47,.4)}
 .off-btns{display:flex;gap:16px}
 .sms{background:var(--glass);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px 28px;display:flex;gap:16px;align-items:center;box-shadow:var(--sheen)}
+.live-source{margin:-24px 0 28px;color:var(--ok);font-size:14px}
+.live-source.error{color:var(--crit)}
 .sms p{flex:1;margin:0;font-family:ui-monospace,monospace;color:#fff}
 
 /* ---------- responsive ---------- */
 @media(max-width:1200px){.kpis{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:1000px){
   .split,.kpis,.fac{grid-template-columns:1fr}
-  .split>table{width:calc(100% - 24px);margin:0 12px 12px}
+  .split>table{width:calc(100% - 24px);height:520px;margin:0 12px 12px}
   .top,.status,main{padding-left:20px;padding-right:20px}
   .status{flex-wrap:wrap}
   .offline{flex-direction:column;align-items:flex-start}

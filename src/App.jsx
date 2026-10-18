@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Zap, Download, Clock, Map as MapIcon, Users, Hospital, Truck,
   Building2, Droplets, ShieldCheck, ChevronRight, Activity, FileText, Eye } from "lucide-react";
 import CountyMap, { riskColor } from "./components/CountyMap.jsx";
@@ -7,6 +7,7 @@ import { counties, summary, actions, facilityStats, people } from "./data.js";
 import { allocate, slotLabel } from "./lib/dispatch.js";
 import { downloadBriefPdf } from "./lib/briefing.js";
 import { sendAssignment, findCounty, buildBlurb, makeAssignmentPdf } from "./lib/assign.js";
+import { loadLiveData } from "./lib/liveData.js";
 
 const fmt = n => (n >= 1000 ? (n / 1000).toFixed(1).replace(".0", "") + "k" : n);
 const tier = r => (r >= 80 ? ["Act now", "crit"] : r >= 50 ? ["Prepare", "warn"] : ["Monitor", "ok"]);
@@ -17,11 +18,32 @@ export default function App() {
   const [selected, setSelected] = useState(null);
   const [assigned, setAssigned] = useState({}); // actionId -> { personIds, note, fileName }
   const [openId, setOpenId] = useState(null);
+  const [liveData, setLiveData] = useState(null);
+  const [liveError, setLiveError] = useState("");
 
-  const ranked = useMemo(() => [...counties].sort((a, b) => b.risk - a.risk), []);
+  useEffect(() => {
+    loadLiveData()
+      .then(setLiveData)
+      .catch(error => setLiveError(error.message));
+  }, []);
+
+  const liveCounties = liveData?.counties || counties;
+  const liveSummary = useMemo(() => {
+    if (!liveData) return summary;
+    const critical = liveCounties.filter(c => c.risk >= 80).length;
+    const totalAssigned = liveCounties.reduce((total, county) => total + county.assignedCrews, 0);
+    return {
+      ...summary,
+      status: critical ? "Severe cascade risk" : "Elevated grid risk",
+      note: liveData.note || summary.note,
+      updated: liveData.generatedAt ? new Date(liveData.generatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : summary.updated,
+      crewsAvailable: Math.max(0, summary.crewsAvailable - totalAssigned),
+    };
+  }, [liveData, liveCounties]);
+  const ranked = useMemo(() => [...liveCounties].sort((a, b) => b.risk - a.risk), [liveCounties]);
   const { plan, crewsCommitted, crewsLeft } = useMemo(
-    () => allocate(actions, { crewsAvailable: summary.crewsAvailable }), []);
-  const pct = Math.round((summary.crewsAvailable / summary.crewsTotal) * 100);
+    () => allocate(actions, { crewsAvailable: liveSummary.crewsAvailable }), [liveSummary.crewsAvailable]);
+  const pct = Math.round((liveSummary.crewsAvailable / liveSummary.crewsTotal) * 100);
   const sel = selected || ranked[0];
 
   return (
@@ -30,7 +52,7 @@ export default function App() {
         <div className="brand"><div className="logo"><Zap size={22} /></div><b>SURGE</b><span>Grid Resilience Command</span></div>
         <div className="top-r">
           <span className="live"><i /> LIVE</span>
-          <button className="btn primary" onClick={() => downloadBriefPdf(summary, ranked, plan)}><Download size={18} /> Generate briefing</button>
+          <button className="btn primary" onClick={() => downloadBriefPdf(liveSummary, ranked, plan)}><Download size={18} /> Generate briefing</button>
         </div>
       </header>
 
@@ -38,18 +60,20 @@ export default function App() {
         <small className="eyebrow">OPERATIONS OVERVIEW</small>
         <h1>Good afternoon, Regional Ops</h1>
         <p className="sub">Prioritized actions for {new Date().toLocaleString([], { weekday: "long", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+        {liveData && <p className="live-source">Live data: {liveData.source} · updated {liveSummary.updated}</p>}
+        {liveError && <p className="live-source error">Live data unavailable; showing fallback data. {liveError}</p>}
 
         <div className="kpis">
           <Kpi icon={<MapIcon />} tone="red" label="Counties at risk" value={ranked.length}>
             <span><b className="red">{ranked.filter(c => c.risk >= 80).length} critical</b> · {ranked.filter(c => c.risk < 80).length} elevated</span>
           </Kpi>
-          <Kpi icon={<Users />} tone="amber" label="People exposed" value={fmt(summary.peopleExposed)}>
-            <span><b className="red">+{fmt(summary.peopleDelta)}</b> since last hour</span>
+          <Kpi icon={<Users />} tone="amber" label="People exposed" value={fmt(liveSummary.peopleExposed)}>
+            <span><b className="red">+{fmt(liveSummary.peopleDelta)}</b> since last hour</span>
           </Kpi>
-          <Kpi icon={<Hospital />} tone="blue" label="Critical facilities" value={summary.criticalFacilities}>
-            <span>{summary.hospitals} hospitals · {summary.careSites} care sites</span>
+          <Kpi icon={<Hospital />} tone="blue" label="Critical facilities" value={liveSummary.criticalFacilities}>
+            <span>{liveSummary.hospitals} hospitals · {liveSummary.careSites} care sites</span>
           </Kpi>
-          <Kpi icon={<Truck />} tone="green" label="Response capacity" value={`${summary.crewsAvailable} / ${summary.crewsTotal}`}
+          <Kpi icon={<Truck />} tone="green" label="Response capacity" value={`${liveSummary.crewsAvailable} / ${liveSummary.crewsTotal}`}
             ring={pct}><span>Crews available now</span></Kpi>
         </div>
 
@@ -73,7 +97,7 @@ export default function App() {
               <tbody>{ranked.map((c, i) => { const [label, cls] = tier(c.risk); return (
                 <tr key={c.id} className={c.id === sel.id ? "sel" : ""} onClick={() => setSelected(c)}>
                   <td><span className="rank">{i + 1}</span><b>{c.name}</b><small>{c.crewHours} crew-hours</small></td>
-                  <td><b className={cls}>{c.risk}</b><small>{c.delta > 0 ? "+" : ""}{c.delta}%</small></td>
+                  <td><b className={cls}>{c.risk}</b><small>24h forecast: {c.delta > 0 ? "+" : ""}{c.delta}%</small></td>
                   <td><b>{fmt(c.exposure)}</b><small>{c.sites} sites</small></td>
                   <td><span className={`pill ${cls}`}>{label} <ChevronRight size={14} /></span></td>
                 </tr>); })}</tbody>
@@ -100,7 +124,7 @@ export default function App() {
                   onClick={() => setOpenId(openId === a.id ? null : a.id)}>
                   {openId === a.id ? "Close" : done ? "Assigned ✓" : "Assign"}</button>
                 {openId === a.id && (
-                  <AssignPanel action={a} people={people} existing={done}
+                  <AssignPanel action={a} people={people} summary={liveSummary} existing={done}
                     onCancel={() => setOpenId(null)}
                     onSent={info => { setAssigned({ ...assigned, [a.id]: info }); setOpenId(null); }} />
                 )}
@@ -108,7 +132,7 @@ export default function App() {
             );
           })}
           <div className="cap"><div><small>CREW CAPACITY AFTER PLAN</small><b>{crewsCommitted} crews committed · {crewsLeft} available</b></div>
-            <div className="bar"><i style={{ width: `${(crewsCommitted / summary.crewsAvailable) * 100}%` }} /></div></div>
+            <div className="bar"><i style={{ width: `${(crewsCommitted / liveSummary.crewsAvailable) * 100}%` }} /></div></div>
         </section>
 
         <section className="card">
@@ -128,7 +152,7 @@ function Kpi({ icon, tone, label, value, children, ring }) {
     {ring != null && <div className="ring" style={{ "--p": ring }}><span>{ring}%</span></div>}</div>);
 }
 
-function AssignPanel({ action, people, existing, onCancel, onSent }) {
+function AssignPanel({ action, people, summary, existing, onCancel, onSent }) {
   const county = findCounty(action, counties);
   const [ids, setIds] = useState(existing?.personIds || []);
   const [phoneNumbers, setPhoneNumbers] = useState(
