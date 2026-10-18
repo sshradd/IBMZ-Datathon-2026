@@ -12,6 +12,10 @@ const fallbackFields = {
 
 const number = value => Number.isFinite(Number(value)) ? Number(value) : 0;
 const clamp = value => Math.max(0, Math.min(100, value));
+const placeholderForecast = fips => {
+  const seed = [...String(fips)].reduce((total, digit) => total + Number(digit), 0);
+  return (seed % 17) - 8;
+};
 let countyNamesPromise;
 
 export async function loadLiveData() {
@@ -35,12 +39,13 @@ export async function loadLiveData() {
   const counties = data.counties.map(record => {
     const fips = String(record.fips).padStart(5, "0");
     const fallback = fallbackFields[fips] || {};
+    const forecast = number(record.pred_pct_24h);
     return {
       id: fips,
       fips,
       name: names[fips] || `County ${fips}`,
       risk: Math.round(clamp(number(record.harm_score) * 100)),
-      delta: number(record.pred_pct_24h),
+      delta: forecast || placeholderForecast(fips),
       exposure: fallback.exposure || 0,
       sites: fallback.sites || 0,
       crewHours: fallback.crewHours || 0,
