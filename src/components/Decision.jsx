@@ -1,10 +1,10 @@
-import { MapPin, X } from "lucide-react";
+import { MapPin, Volume2, X } from "lucide-react";
 import Stepper from "./Stepper.jsx";
 import { qtyText, total } from "../lib/decisions.js";
 import { compact, departBy, mins, pct, TIER_NAMES } from "../lib/format.js";
 
-/** The decision for one county: what is happening, how long a crew takes, and how many crews you add to the plan. */
-export default function Decision({ county, index, latest, priority, qty, onQty, available, busy, onSend, onSkip, onClose }) {
+/** The decision for one county: what is happening, how long a crew takes, and how many crews you assign. */
+export default function Decision({ county, index, latest, priority, qty, onQty, available, busy, onSend, onSkip, onClose, onSpeak }) {
   const row = latest.counties[index];
   const tier = TIER_NAMES[row[1]];
   const out = row[2];
@@ -24,6 +24,7 @@ export default function Decision({ county, index, latest, priority, qty, onQty, 
           </div>
           <h2 className="dec-h">{county.name} County</h2>
         </div>
+        {onSpeak && <button className="icon-btn" onClick={onSpeak} aria-label="Read the top three aloud" title="Read the top three aloud"><Volume2 size={20} /></button>}
         {onClose && <button className="icon-btn" onClick={onClose} aria-label="Close county details"><X size={20} /></button>}
       </div>
 
@@ -42,10 +43,10 @@ export default function Decision({ county, index, latest, priority, qty, onQty, 
       <div className="dec-add">
         <Stepper bare label="Line crews" value={qty.line} max={available.line} onChange={v => onQty({ ...qty, line: v })} />
         <button className="btn primary grow" onClick={onSend} disabled={busy || total(qty) === 0}>
-          {total(qty) ? `Add ${total(qty)} to plan` : "Choose how many"}
+          {total(qty) ? `Assign ${total(qty)}` : "Choose how many"}
         </button>
       </div>
-      <p className="mono faint sm mt-xs">{available.line} line crews free{total(qty) ? ` · adds ${qtyText(qty)}` : ""}</p>
+      <p className="mono faint sm mt-xs">{available.line} line crews free{total(qty) ? ` · assigns ${qtyText(qty)}` : ""}</p>
 
       <dl className="facts">
         <Fact label="Risk 24 h" value={pct(row[0], 0)} />

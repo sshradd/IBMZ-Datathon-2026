@@ -68,6 +68,13 @@ export function StoreProvider({ children }) {
   const [selected, setSelected] = useState(null);
   const [models, setModels] = useState(null);
   const [pendingUndo, setPendingUndo] = useState(null);
+  const [assign, setAssign] = useState(null); // the orders being reviewed in the assign popup
+  const openAssign = useCallback(orders => setAssign(orders.length ? orders : null), []);
+  const closeAssign = useCallback(() => setAssign(null), []);
+  const [composer, setComposer] = useState(null); // the text-a-crew sheet: { unitId } while open
+  const openComposer = useCallback((unitId = null) => setComposer({ unitId }), []);
+  const closeComposer = useCallback(() => setComposer(null), []);
+  const [history, setHistory] = useState([]); // the last hours, small, so the map can be scrubbed back
   const [toast, setToast] = useState(null);
   const [qty, setQtyState] = useState({});
   const [series, setSeries] = useState([]);
@@ -193,6 +200,11 @@ export function StoreProvider({ children }) {
         for (const e of batch) next.push({ i: e.i, out: e.out_total, flagged: e.tier_counts[1] + e.tier_counts[2] + e.tier_counts[3] });
         return next;
       });
+      setHistory(prev => {
+        const next = prev.length && prev[prev.length - 1].i >= batch[0].i ? [] : prev.slice(-71);
+        for (const e of batch) next.push({ i: e.i, t: e.t, counties: e.counties, out_total: e.out_total });
+        return next.slice(-72);
+      });
       try {
         localStorage.setItem(LAST_KEY, JSON.stringify(last));
       } catch {
@@ -211,6 +223,7 @@ export function StoreProvider({ children }) {
         pending.current = [];
         setLatest(null);
         setSeries([]);
+        setHistory([]);
         setPlan(null);
         setState(msg);
       } else if (msg.type === "end") {
@@ -273,7 +286,7 @@ export function StoreProvider({ children }) {
       await Promise.all([refreshOps(), refreshPlan()]);
       if (r.dispatched > 0) {
         window.clearTimeout(undoTimer.current);
-        setPendingUndo({ count: r.dispatched, fips: orders.map(o => o.fips), until: Date.now() + UNDO_MS });
+        setPendingUndo({ count: r.dispatched, fips: orders.map(o => o.fips), units: r.work_orders.map(w => w.unit_id), until: Date.now() + UNDO_MS });
         undoTimer.current = window.setTimeout(() => setPendingUndo(null), UNDO_MS);
         if (r.short.length) say(`Only ${r.dispatched} units were free for the plan: ${r.short.map(x => `${x.county} got ${x.assigned} of ${x.requested} ${x.type}`).join(", ")}`);
       } else {
@@ -331,10 +344,10 @@ export function StoreProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, setSelected, pendingUndo, toast, say, series,
+      latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, setSelected, pendingUndo, assign, openAssign, closeAssign, composer, openComposer, closeComposer, toast, say, series, history,
       qty, setQty, start, startDemo, pause, resume, seek, dispatch, undo, setUnitCount, setStock, setTarget, setUnitStatus, sitrep, refreshPlan,
     }),
-    [latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, pendingUndo, toast, say, series,
+    [latest, state, counties, scenarios, connected, online, queued, plan, ops, tiers, selected, pendingUndo, assign, openAssign, closeAssign, composer, openComposer, closeComposer, toast, say, series, history,
       qty, setQty, start, startDemo, pause, resume, seek, dispatch, undo, setUnitCount, setStock, setTarget, setUnitStatus, sitrep, refreshPlan],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

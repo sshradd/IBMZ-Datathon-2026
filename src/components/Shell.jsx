@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { CloudOff, Ellipsis, Map as MapIcon, Package, Undo2, Users, Zap } from "lucide-react";
 import { UNDO_MS, useStore } from "../lib/store.jsx";
 import { clock } from "../lib/format.js";
+import AssignSheet from "./AssignSheet.jsx";
+import TextCrew from "./TextCrew.jsx";
 
 export const TABS = [
   { path: "/", label: "Outages", icon: MapIcon },
@@ -41,6 +43,8 @@ export default function Shell({ path, children }) {
 
       <UndoBar />
       <Toast />
+      <TextCrew />
+      <AssignSheet />
     </div>
   );
 }
@@ -70,7 +74,7 @@ function Playback() {
 }
 
 function UndoBar() {
-  const { pendingUndo, undo } = useStore();
+  const { pendingUndo, undo, assign } = useStore();
   const [left, setLeft] = useState(0);
   useEffect(() => {
     if (!pendingUndo) return;
@@ -79,13 +83,13 @@ function UndoBar() {
     const id = setInterval(tick, 200);
     return () => clearInterval(id);
   }, [pendingUndo]);
-  if (!pendingUndo) return null;
+  if (!pendingUndo || assign) return null;
   return (
     <div className="card undo" role="status">
       <div className="undo-in">
         <div>
-          <b>Added {pendingUndo.count} {pendingUndo.count === 1 ? "unit" : "units"} to the plan</b>
-          <p className="muted sm">Copy or share the plan from the Teams tab. This app does not dispatch.</p>
+          <b>Assigned {pendingUndo.count} {pendingUndo.count === 1 ? "crew" : "crews"}</b>
+          <p className="muted sm">This app only recommends.</p>
         </div>
         <button className="btn" onClick={undo}><Undo2 size={18} /> Undo</button>
       </div>

@@ -14,3 +14,18 @@ export function qtyText(q) {
 export const qtyOf = (m, fips) => m[fips] ?? DEFAULT_QTY;
 export const orderOf = (p, m) => ({ fips: p.fips, ...qtyOf(m, p.fips) });
 export const total = q => q.line + q.shelter + q.outreach;
+
+/** What the responder wants the list ordered by. The forecast ranks counties; this chooses what counts first. */
+export const OBJECTIVES = [
+  { id: "impact", label: "Most customers" },
+  { id: "seniors", label: "Most seniors" },
+  { id: "fast", label: "Closest crew" },
+];
+
+/** Reorder the priority list for an objective. "impact" keeps the planner's order; ties keep it too. */
+export function rankBy(ps, objective) {
+  if (objective === "impact") return ps;
+  const idx = new Map(ps.map((p, i) => [p.fips, i]));
+  const key = objective === "seniors" ? p => -p.seniors_exposed : p => (p.nearest ? p.nearest.eta_min : Number.POSITIVE_INFINITY);
+  return [...ps].sort((a, b) => key(a) - key(b) || idx.get(a.fips) - idx.get(b.fips));
+}

@@ -23,8 +23,15 @@ export default function Statewide({ latest, counties, series, onSelect, selected
     .slice(0, 5);
   const top = Math.max(1, ...rows.map(r => r.v));
 
+  const sc = latest.describe.scorecard;
   return (
     <section aria-label="Statewide" className="blk">
+      {!live && sc.onsets > 0 && sc.warned_pct != null && (
+        <div className="rcpt">
+          <h3 className="eyebrow">Warned before the outage</h3>
+          <p className="big-n">{Math.round(sc.warned_pct)}% <span className="muted sm">of {sc.onsets} county outages{sc.median_lead_h != null ? `, median ${sc.median_lead_h} h ahead` : ""}</span></p>
+        </div>
+      )}
       {!live && pts.length > 1 && (
         <div>
           <div className="blk-h"><h3 className="eyebrow">Customers out, statewide</h3><span className="mono faint">{trend}</span></div>

@@ -1,10 +1,11 @@
-import { Copy, MapPin, Plus, Share2, Undo2 } from "lucide-react";
+import { Copy, MapPin, MessageSquare, Plus, Share2, Undo2 } from "lucide-react";
 import { useState } from "react";
 import Stepper from "../components/Stepper.jsx";
-import { orderOf, qtyOf, total } from "../lib/decisions.js";
+import { orderOf, qtyOf, rankBy, total } from "../lib/decisions.js";
 import { compact, dayClock, departBy, mins, pct } from "../lib/format.js";
 import { orderFor } from "../lib/orders.js";
 import { copyText, shareText } from "../lib/share.js";
+import { useSetting } from "../lib/settings.js";
 import { useStore } from "../lib/store.jsx";
 
 const TYPE_LABEL = { line: "Line crews", shelter: "Shelter teams", outreach: "Outreach teams" };
@@ -12,17 +13,11 @@ const TYPE_LABEL = { line: "Line crews", shelter: "Shelter teams", outreach: "Ou
 export default function Teams() {
   const s = useStore();
   const { plan, ops, latest, qty, setQty } = s;
-  const [busy, setBusy] = useState(false);
+  const [objective] = useSetting("objective", "impact");
+  const [busy] = useState(false);
   const now = latest?.as_of ?? latest?.t ?? "";
 
-  const addToPlan = async ps => {
-    setBusy(true);
-    try {
-      await s.dispatch(ps.map(p => orderOf(p, qty)).filter(o => o.line + o.shelter + o.outreach > 0));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const addToPlan = ps => s.openAssign(ps.map(p => orderOf(p, qty)).filter(o => o.line + o.shelter + o.outreach > 0));
 
   if (!ops) return <div className="page"><p className="muted">Loading crews…</p></div>;
   const out = ops.units.filter(u => u.status === "en_route" || u.status === "on_site");
@@ -31,7 +26,7 @@ export default function Teams() {
     `RECOMMENDED PLAN · Texas power outage response${latest ? ` · ${dayClock(latest.as_of ?? latest.t)} CST` : ""}\n\n` +
     out.map(u => orderFor(u, s.counties, ops.depots, now)?.text ?? "").filter(Boolean).join("\n\n") +
     "\n\nRecommendations only. Nothing was dispatched by this app.";
-  const list = plan?.priorities.slice(0, 25) ?? [];
+  const list = rankBy(plan?.priorities ?? [], objective).slice(0, 25);
 
   return (
     <div className="page wide">
@@ -39,7 +34,7 @@ export default function Teams() {
         <p className="eyebrow">Teams</p>
         <h1>The <span className="accent">plan</span></h1>
         <p className="lede">
-          Counties are ranked from weather and outage data. For each one the app recommends the nearest free crew and shows the drive time. You choose how many crews to add to the plan, then copy or share it. This app recommends only: your own dispatch system sends the crews. Crews and depots are sample data.
+          Counties are ranked from weather and outage data. For each one the app recommends the nearest free crew and shows the drive time. You choose how many crews to assign, then text them or copy the plan. This app recommends only: your own dispatch system sends the crews. Crews and depots are sample data.
         </p>
       </header>
 
@@ -57,7 +52,7 @@ export default function Teams() {
         <section aria-label="Priority counties">
           <div className="sec-h">
             <h2 className="eyebrow">Priority counties · {list.length}</h2>
-            <button className="btn sm" onClick={() => addToPlan(list.slice(0, 5))} disabled={busy || !list.length} title="Adds what is set on each of the top five rows to the plan"><Plus size={16} /> Add top 5 to plan</button>
+            <button className="btn sm" onClick={() => addToPlan(list.slice(0, 5))} disabled={busy || !list.length} title="Assigns what is set on each of the top five rows"><Plus size={16} /> Assign top 5</button>
           </div>
           {!list.length && <p className="muted py">{latest ? "No county is rated watch or higher right now." : "Go live or load demo outages to see the ranking."}</p>}
           <ul className="rows">
@@ -77,7 +72,7 @@ export default function Teams() {
                   </div>
                   <div className="pri-act">
                     <Stepper bare label="Line crews" value={q.line} onChange={n => setQty(p.fips, { ...q, line: n })} max={tot?.line.available ?? 0} />
-                    <button className="btn primary grow" onClick={() => addToPlan([p])} disabled={busy || total(q) === 0}>Add {total(q) || ""}</button>
+                    <button className="btn primary grow" onClick={() => addToPlan([p])} disabled={busy || total(q) === 0}>Assign {total(q) || ""}</button>
                   </div>
                 </li>
               );
@@ -97,7 +92,7 @@ export default function Teams() {
               )}
             </div>
             {out.length === 0 ? (
-              <p className="muted py">Nothing in the plan yet. Add crews from the list and they appear here as recommendations you can copy or share.</p>
+              <p className="muted py">Nothing in the plan yet. Assign crews from the list and they appear here, ready to text.</p>
             ) : (
               <ul className="rows">{out.map(u => <FieldRow key={u.id} u={u} now={now} />)}</ul>
             )}
@@ -153,6 +148,7 @@ function FieldRow({ u, now }) {
         <span className="chip">{a ? (a.depart_by_min === 0 ? "leave now" : `leave by ${departBy(now, a.depart_by_min)}`) : "planned"}</span>
       </div>
       <div className="btn-row">
+        <button className="btn sm primary" onClick={() => s.openComposer(u.id)}><MessageSquare size={16} /> Text crew</button>
         <button className="btn sm" onClick={() => s.setUnitStatus(u.id, "available")}><Undo2 size={16} /> Remove from plan</button>
         {o && (
           <>

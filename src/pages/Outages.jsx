@@ -5,8 +5,9 @@ import CountyMap from "../components/CountyMap.jsx";
 import Decision from "../components/Decision.jsx";
 import Statewide from "../components/Statewide.jsx";
 import Weather from "../components/Weather.jsx";
-import { orderOf, qtyOf, total } from "../lib/decisions.js";
+import { OBJECTIVES, orderOf, qtyOf, rankBy, total } from "../lib/decisions.js";
 import { clock, compact, departBy, mins, pct } from "../lib/format.js";
+import { useSetting } from "../lib/settings.js";
 import { useStore } from "../lib/store.jsx";
 
 const LAYERS = [
@@ -28,6 +29,12 @@ export default function Outages() {
   const [skipped, setSkipped] = useState([]);
   const [busy, setBusy] = useState(false);
   const [snap, setSnap] = useState(0);
+  const [objective, setObjective] = useSetting("objective", "impact");
+  const [back, setBack] = useState(null); // index into the last hours of history while the map is rewound
+  const historyLen = s.history.length;
+  useEffect(() => {
+    if (back != null && back >= historyLen) setBack(null);
+  }, [back, historyLen]);
 
   // first open with nothing running: load the recorded outages so the map is never empty
   const autoStarted = useRef(false);
@@ -39,7 +46,7 @@ export default function Outages() {
     s.startDemo();
   }, [latest, s, hasDemo]);
 
-  const priorities = useMemo(() => (plan?.priorities ?? []).filter(p => !skipped.includes(p.fips)), [plan, skipped]);
+  const priorities = useMemo(() => rankBy((plan?.priorities ?? []).filter(p => !skipped.includes(p.fips)), objective), [plan, skipped, objective]);
   const top = priorities[0];
   const focusFips = selected ?? top?.fips ?? null;
   const idx = useMemo(() => new Map(counties.map((c, i) => [c.fips, i])), [counties]);
@@ -83,16 +90,24 @@ export default function Outages() {
     shelter: plan?.totals.shelter.available ?? 0,
     outreach: plan?.totals.outreach.available ?? 0,
   };
-  const addToPlan = async fips => {
-    setBusy(true);
-    try {
-      const orders = fips.map(f => plan?.priorities.find(p => p.fips === f)).filter(Boolean).map(p => orderOf(p, qty));
-      const direct = fips.filter(f => !orders.some(o => o.fips === f)).map(f => ({ fips: f, ...qtyOf(qty, f) }));
-      await s.dispatch([...orders, ...direct].filter(o => o.line + o.shelter + o.outreach > 0));
-    } finally {
-      setBusy(false);
-    }
+  // Assign opens one popup that reviews, takes a note and hands the text to Messages
+  const addToPlan = fips => {
+    const orders = fips.map(f => plan?.priorities.find(p => p.fips === f)).filter(Boolean).map(p => orderOf(p, qty));
+    const direct = fips.filter(f => !orders.some(o => o.fips === f)).map(f => ({ fips: f, ...qtyOf(qty, f) }));
+    s.openAssign([...orders, ...direct].filter(o => o.line + o.shelter + o.outreach > 0));
   };
+  const speak = () => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return s.say("Reading aloud is not available on this device");
+    window.speechSynthesis.cancel();
+    const line = p =>
+      `${p.county} County. ${p.status === "out" ? "Power is out." : `${p.status} level.`} ` +
+      (p.nearest ? `${p.nearest.depot} crew is ${p.nearest.eta_min} minutes away. ${p.depart_by_min === 0 ? "Leave now." : `Leave by ${departBy(now, p.depart_by_min)}.`}` : "No crew is free.");
+    const text = priorities.length ? priorities.slice(0, 3).map(line).join(" Next. ") : "No county needs a crew right now.";
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+  };
+  const viewFrame = back != null ? s.history[back] : null;
+  const mapLatest = viewFrame ? { ...latest, counties: viewFrame.counties } : latest;
+  const hoursBack = viewFrame ? Math.max(0, s.history[historyLen - 1].i - viewFrame.i) : 0;
   const statewide = latest.prescribe.moves.filter(m => m.kind === "statewide");
   const outUnits = ops?.units.filter(u => u.status === "en_route" || u.status === "on_site").length ?? 0;
   const nextUp = priorities.filter(p => p.fips !== focusFips);
@@ -124,6 +139,7 @@ export default function Outages() {
           onSend={() => addToPlan([focus.fips])}
           onSkip={focusPriority && focus.fips === top?.fips ? () => { setSkipped(x => [...x, focus.fips]); setSelected(null); } : undefined}
           onClose={selected ? () => setSelected(null) : undefined}
+          onSpeak={speak}
         />
       ) : !plan ? (
         <p className="muted">Loading the plan…</p>
@@ -155,6 +171,9 @@ export default function Outages() {
       {nextUp.length > 0 && (
         <section aria-label="Next up">
           <h3 className="eyebrow">Next up · {nextUp.length}</h3>
+          <div className="seg obj" role="group" aria-label="Order the list by">
+            {OBJECTIVES.map(o => <button key={o.id} onClick={() => setObjective(o.id)} aria-pressed={objective === o.id}>{o.label}</button>)}
+          </div>
           <ul className="rows mt-xs">
             {nextUp.slice(0, 6).map(p => {
               const q = qtyOf(qty, p.fips);
@@ -167,13 +186,13 @@ export default function Outages() {
                       {p.depart_by_min === 0 ? "leave now" : `leave by ${departBy(now, p.depart_by_min)}`}
                     </small>
                   </button>
-                  <button className="btn" onClick={() => addToPlan([p.fips])} disabled={busy || total(q) === 0}>Add {total(q)}</button>
+                  <button className="btn" onClick={() => addToPlan([p.fips])} disabled={busy || total(q) === 0}>Assign {total(q)}</button>
                 </li>
               );
             })}
           </ul>
           {nextUp.length > 6 && <p className="faint sm mt-xs">and {nextUp.length - 6} more on the Teams tab</p>}
-          <p className="faint xs mt-s">Each row adds what you set for that county to the plan, one line crew unless you open it and choose differently.</p>
+          <p className="faint xs mt-s">Each row assigns what you set for that county, one line crew unless you open it and choose differently.</p>
         </section>
       )}
 
@@ -204,7 +223,7 @@ export default function Outages() {
             <div className="list-pane"><CountyList counties={counties} latest={latest} selected={selected} onSelect={f => { setSelected(f); setList(false); }} /></div>
           ) : (
             <CountyMap
-              latest={latest} counties={counties} layer={layer} tiers={tiers} selected={selected} onSelect={setSelected}
+              latest={mapLatest} counties={counties} layer={layer} tiers={tiers} selected={selected} onSelect={setSelected}
               depots={ops?.depots ?? []} lines={links} staging={plan?.staging.sites.slice(0, 1) ?? []} beacon={top ? [top.fips] : []}
               bottomPad={typeof window !== "undefined" && window.innerWidth < 1024 ? 300 : 60}
             />
@@ -225,6 +244,18 @@ export default function Outages() {
             </div>
           </div>
 
+          {historyLen >= 3 && !live && !list && (
+            <div className="rewind">
+              <span className="mono">{back == null ? "Now" : `−${hoursBack} h`}</span>
+              <input
+                type="range" className="scrub" min={0} max={historyLen - 1} value={back ?? historyLen - 1}
+                style={{ "--p": `${((back ?? historyLen - 1) / Math.max(historyLen - 1, 1)) * 100}%` }}
+                onChange={e => { const v = Number(e.target.value); setBack(v >= historyLen - 1 ? null : v); }}
+                aria-label="Rewind the map through the last hours"
+              />
+              {back != null && <button className="btn sm" onClick={() => setBack(null)}>Now</button>}
+            </div>
+          )}
           <div className="map-bl">
             <button className="btn sm" onClick={() => setList(v => !v)} aria-pressed={list}>{list ? <MapIcon size={16} /> : <List size={16} />} {list ? "Map" : "List"}</button>
             <div className="hide-below-lg"><Legend layer={layer} /></div>
