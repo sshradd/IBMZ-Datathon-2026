@@ -37,6 +37,8 @@ export default function SurgePage() {
   const [model, setModel] = useState(null);
   const ready = !!s.latest; // the store decides live or recorded before the first forecast arrives
   useEffect(() => { if (ready) api("GET", "/api/models").then(m => setModel(m.honest)).catch(() => {}); }, [ready]);
+  const [system, setSystem] = useState(null);
+  useEffect(() => { if (ready && !s.demo) api("GET", "/api/system").then(setSystem).catch(() => {}); }, [ready, s.demo]);
   const layer = mode === "risk" ? hz : mode === "exposure" ? "out" : mode;
   const [selected, setSelected] = useState(null);
   const [assigned, setAssigned] = useState({}); // actionId -> { personIds, note, fileName, mode }
@@ -111,7 +113,12 @@ export default function SurgePage() {
           <Fig label="People exposed" value={fmt(summary.peopleExposed)}>{data.live ? "no county outage feed in live mode" : <><b className="red">{fmt(summary.customersOut)}</b> out now</>}</Fig>
           <Fig label="Seniors exposed" value={fmt(summary.seniors)}>aged 65+, counties likely to go severe</Fig>
           <Fig label="Line crews free" value={`${summary.crewsAvailable}/${summary.crewsTotal}`} bar={pct}>{inPlan} in the plan</Fig>
-          <div className="st-meta"><span>Updated {summary.updated}</span>{summary.warned != null && <span>Warned before the outage <b>{summary.warned}%</b></span>}</div>
+          <div className="st-meta">
+            <span>Updated {summary.updated}</span>
+            {data.scoring && <span>{data.scoring.n} counties scored in <b>{data.scoring.ms < 10 ? data.scoring.ms.toFixed(1) : Math.round(data.scoring.ms)} ms</b> on <b>{s.demo ? "a laptop (recorded run)" : system?.is_ibm_z ? "IBM LinuxONE" : system?.machine ?? "the server"}</b></span>}
+            {summary.warned != null && <span>Warned before the outage <b>{summary.warned}%</b></span>}
+            {data.changes.length > 0 && <span className="chg">Last 6 h: {data.changes.map(c => `${c.name} ${c.kind}`).join(" · ")}</span>}
+          </div>
         </section>
 
         <section className="hero" aria-label="County risk">
@@ -136,7 +143,7 @@ export default function SurgePage() {
                 <div className="rn">
                   <div className="r1"><b>{c.name}</b><span className={`rs ${cls}`}>{c.status === "out" ? "Power out" : label}</span></div>
                   <div className="r2"><span className="rbar"><i style={{ width: `${c.risk}%`, background: riskColor(c.risk) }} /></span><span className="rv">{c.risk}</span><span className={`rd ${c.delta > 0 ? "up" : c.delta < 0 ? "dn" : ""}`}>{c.delta > 0 ? `▲${c.delta}` : c.delta < 0 ? `▼${-c.delta}` : "–"}</span></div>
-                  <span className="r3">{fmt(c.exposure)} exposed · {c.eta != null ? `${c.depot} crew ${c.eta} min` : "no crew free"}</span>
+                  <span className="r3">{fmt(c.exposure)} exposed{c.why ? ` · ${c.why}` : ""}</span>
                 </div>
               </li>); })}</ol>
           </aside>

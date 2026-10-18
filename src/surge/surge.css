@@ -161,3 +161,6 @@ main{}
 @media (max-width:980px){#root .sg .trust-grid{grid-template-columns:1fr}}
 #root .sg .hero{height:680px}
 @media (max-width:980px){#root .sg .hero{height:auto}}
+
+#root .sg .r3{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#root .sg .st-meta .chg{color:var(--ink-2)}

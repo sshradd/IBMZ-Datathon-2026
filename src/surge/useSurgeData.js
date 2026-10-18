@@ -43,7 +43,7 @@ export function useSurgeData() {
         const row = prev.counties[i];
         if (row) delta = nowIdx - riskIndex(row[0], tiers, row[2] >= c.severe_at);
       }
-      return { id: p.fips, fips: p.fips, name: p.county, risk: nowIdx, delta, exposure: people(p), seniors: p.seniors_exposed, eta: p.nearest?.eta_min ?? null, depot: p.nearest?.depot ?? null, status: p.status, out: p.out };
+      return { id: p.fips, fips: p.fips, name: p.county, risk: nowIdx, delta, exposure: people(p), seniors: p.seniors_exposed, eta: p.nearest?.eta_min ?? null, depot: p.nearest?.depot ?? null, status: p.status, out: p.out, why: p.reasons?.[0] ?? null };
     });
 
     // a quiet day flags few counties; still show the eight highest-risk ones so the ranking never looks empty
@@ -58,7 +58,7 @@ export function useSurgeData() {
           let delta = 0;
           const old = prev?.counties[idx.get(c.fips)];
           if (old && prev !== history[history.length - 1]) delta = riskIndex(row[0], tiers, row[2] >= c.severe_at) - riskIndex(old[0], tiers, old[2] >= c.severe_at);
-          list.push({ id: c.fips, fips: c.fips, name: c.name, risk: riskIndex(row[0], tiers, row[2] >= c.severe_at), delta, exposure: Math.round(row[0] * c.pop), seniors: Math.round(row[0] * c.pop65), eta: null, depot: null, status: "clear", out: row[2] });
+          list.push({ id: c.fips, fips: c.fips, name: c.name, risk: riskIndex(row[0], tiers, row[2] >= c.severe_at), delta, exposure: Math.round(row[0] * c.pop), seniors: Math.round(row[0] * c.pop65), eta: null, depot: null, status: "clear", out: row[2], why: null });
         });
     }
 
@@ -69,8 +69,22 @@ export function useSurgeData() {
       people: people(p), seniors: p.seniors_exposed, eta: p.nearest?.eta_min ?? null, leave: p.depart_by_min,
     }));
 
+    // what changed in the last six hours, newest first: a county that lost power or moved up to act
+    const changes = [];
+    const frames = history.slice(-7);
+    for (let f = frames.length - 1; f > 0 && changes.length < 4; f--) {
+      const a = frames[f - 1], b = frames[f];
+      counties.forEach((c, i) => {
+        const x = a.counties[i], y = b.counties[i];
+        if (!x || !y || changes.length >= 4) return;
+        const sevB = y[2] >= c.severe_at, sevA = x[2] >= c.severe_at;
+        if (sevB && !sevA) changes.push({ name: c.name, kind: "lost power", ago: frames.length - 1 - f });
+        else if (y[1] === 3 && x[1] < 3 && !sevB) changes.push({ name: c.name, kind: "went to act", ago: frames.length - 1 - f });
+      });
+    }
     const [, watchN, prepareN, actN] = latest.tier_counts;
     const sc = latest.describe.scorecard;
+    const scoring = latest.latency?.p50_ms ? { n: latest.counties.length, ms: latest.latency.p50_ms * latest.counties.length } : null;
     const units = ops?.units ?? [];
     const st = latest.diagnose.state;
     const nws = (latest.alerts?.events ?? []).filter(e => e.relevant).length;
@@ -91,6 +105,6 @@ export function useSurgeData() {
       { key: "shed", n: `${st.fc_err >= 0 ? "+" : ""}${Math.round(st.fc_err * 100)}%`, label: "Demand vs ERCOT forecast", sub: st.fc_err < -0.12 ? "Load is being shed" : "No load shedding signal" },
       { key: "nws", n: nws, label: "Weather service alerts", sub: nws ? "relevant to the grid" : "none relevant to the grid" },
     ];
-    return { counties: list, actions, summary, weather, people: ROSTER, cov: coverage(plan.priorities, units), now, live: !!latest.live };
+    return { counties: list, changes, scoring, actions, summary, weather, people: ROSTER, cov: coverage(plan.priorities, units), now, live: !!latest.live };
   }, [latest, plan, counties, ops, tiers, history]);
 }
