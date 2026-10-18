@@ -51,7 +51,7 @@ export default function CountyMap({ latest, counties, layer, tiers, selected, on
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [hover, setHover] = useState(null);
-  const [sat, setSat] = useState(false);
+  const [sat, setSat] = useState(true); // satellite imagery by default; the button switches to the dark street map
   const select = useRef(onSelect);
   select.current = onSelect;
 
