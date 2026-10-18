@@ -54,7 +54,6 @@ flowchart LR
     end
 ```
 
-## In one sentence
 
 The model takes **512 hours of history** (each county's recent outages, weather, and
 statewide grid demand) plus the **96-hour-ahead weather forecast**, and outputs each
